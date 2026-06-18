@@ -1,0 +1,70 @@
+export type SearchProvider = "google" | "duckduckgo" | "brave" | "bing";
+
+export type Shortcut = {
+  id: string;
+  name: string;
+  url: string;
+  icon: string;
+  iconSlug?: string;
+  color: string;
+  category: string;
+  openInNewTab: boolean;
+  order: number;
+};
+
+export type Todo = {
+  id: string;
+  text: string;
+  completed: boolean;
+  order: number;
+};
+
+export type WidgetKey = "calendar" | "todos" | "notes";
+
+export type LayoutMode = "grid" | "free";
+
+export type FreeItemPosition = {
+  x: number;
+  y: number;
+  w: number;
+  h: number;
+};
+
+export type DashboardLayout = {
+  mode: LayoutMode;
+  widgetOrder: WidgetKey[];
+  freeItems: Record<string, FreeItemPosition>;
+};
+
+export type Settings = {
+  background: "image" | "gradient";
+  blur: number;
+  glassOpacity: number;
+  iconSize: number;
+  columns: number;
+  greeting: string;
+  searchProvider: SearchProvider;
+  timeFormat: "12" | "24";
+  weatherLocation: string;
+  widgets: {
+    calendar: boolean;
+    todos: boolean;
+    notes: boolean;
+  };
+};
+
+export type DashboardData = {
+  shortcuts: Shortcut[];
+  todos: Todo[];
+  note: string;
+  settings: Settings;
+  layout: DashboardLayout;
+};
+
+export type Profile = {
+  id: string;
+  name: string;
+  createdAt: string;
+  updatedAt: string;
+  data: DashboardData;
+};
