@@ -1,5 +1,7 @@
-import { Bookmark, CalendarDays, Clock3, Grid3X3, Moon, Settings, StickyNote } from "lucide-react";
+import { Bookmark, Clock3, Grid3X3, Settings, StickyNote } from "lucide-react";
+import { useEffect, useState } from "react";
 import { useDashboardStore } from "../store/dashboardStore";
+import type { Profile } from "../types/dashboard";
 
 type Props = {
   onOpenSettings: () => void;
@@ -16,17 +18,16 @@ export function Sidebar({ onOpenSettings }: Props) {
   const activeProfile = useDashboardStore((state) =>
     state.profiles.find((profile) => profile.id === state.activeProfileId),
   );
-  const initial = activeProfile?.name.trim().slice(0, 1).toUpperCase() || "A";
 
   return (
     <aside className="sidebar-shell">
       <button
-        className="mt-9 flex h-10 w-10 items-center justify-center rounded-2xl bg-white/8 text-xl font-semibold text-white"
+        className="sidebar-brand"
         type="button"
-        title={`Aktív profil: ${activeProfile?.name ?? "Alap profil"}`}
+        title="Auren"
         onClick={onOpenSettings}
       >
-        {initial}
+        <img src="/aurenlogo_withoutName.png" alt="" />
       </button>
       <nav className="mt-28 flex flex-1 flex-col items-center gap-5">
         {navItems.map(({ icon: Icon, label, active }) => (
@@ -38,9 +39,24 @@ export function Sidebar({ onOpenSettings }: Props) {
           <Settings size={22} />
         </button>
       </nav>
-      <button className="icon-button mb-8" title="Téma" type="button">
-        <Moon size={22} />
+      <button className="sidebar-avatar mb-8" title={`Aktív profil: ${activeProfile?.name ?? "Alap profil"}`} type="button" onClick={onOpenSettings}>
+        <ProfileAvatar profile={activeProfile} />
       </button>
     </aside>
   );
+}
+
+function ProfileAvatar({ profile }: { profile?: Profile }) {
+  const [failed, setFailed] = useState(false);
+  const initial = profile?.name.trim().slice(0, 1).toUpperCase() || "A";
+
+  useEffect(() => {
+    setFailed(false);
+  }, [profile?.avatarUrl]);
+
+  if (profile?.avatarUrl && !failed) {
+    return <img src={profile.avatarUrl} alt="" onError={() => setFailed(true)} />;
+  }
+
+  return <span>{initial}</span>;
 }

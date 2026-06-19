@@ -3,10 +3,12 @@ import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
 import { defaultLayout, useDashboardStore } from "../store/dashboardStore";
 import type { FreeItemPosition, Shortcut, WidgetKey } from "../types/dashboard";
+import { normalizeShortcutUrl } from "../lib/url";
 import { CalendarWidget } from "./CalendarWidget";
 import { ClockWeather } from "./ClockWeather";
 import { NotesWidget } from "./NotesWidget";
 import { SearchBar } from "./SearchBar";
+import { ShortcutEditorModal } from "./ShortcutEditorModal";
 import { ShortcutIcon } from "./ShortcutIcon";
 import { TodoWidget } from "./TodoWidget";
 
@@ -24,13 +26,18 @@ const SNAP_Y = 100 / GRID_ROWS;
 
 const snap = (value: number, unit: number) => Math.round(value / unit) * unit;
 const roundCoord = (value: number) => Number(value.toFixed(4));
+type ShortcutFormState = Omit<Shortcut, "id" | "order">;
 
 export function FreeDashboard() {
   const boardRef = useRef<HTMLDivElement>(null);
   const storedShortcuts = useDashboardStore((state) => state.shortcuts);
   const settings = useDashboardStore((state) => state.settings);
   const layout = useDashboardStore((state) => state.layout ?? defaultLayout);
+  const addShortcut = useDashboardStore((state) => state.addShortcut);
+  const updateShortcut = useDashboardStore((state) => state.updateShortcut);
+  const deleteShortcut = useDashboardStore((state) => state.deleteShortcut);
   const updateFreeItemPosition = useDashboardStore((state) => state.updateFreeItemPosition);
+  const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null);
   const shortcuts = useMemo(
     () => [...storedShortcuts].sort((a, b) => a.order - b.order),
     [storedShortcuts],
@@ -43,7 +50,7 @@ export function FreeDashboard() {
   const systemDefaults = [
     {
       id: "system:hero",
-      position: gridPosition(8, 3, 8, 3),
+      position: gridPosition(8, 2, 8, 3),
       content: (
         <header className="dashboard-hero free-hero">
           <h1 className="hero-title">{settings.greeting}</h1>
@@ -53,7 +60,7 @@ export function FreeDashboard() {
     },
     {
       id: "system:search",
-      position: gridPosition(7, 7, 10, 1.5),
+      position: gridPosition(7, 6, 10, 1.5),
       content: <SearchBar />,
     },
     {
@@ -63,14 +70,14 @@ export function FreeDashboard() {
     },
     {
       id: "system:quote",
-      position: gridPosition(8, 22, 8, 1),
+      position: gridPosition(8, 21, 8, 1),
       content: <p className="dashboard-quote free-quote">„A figyelem a legértékesebb valuta.” - James Clear</p>,
     },
   ];
   const shortcutDefaults = shortcuts.map((shortcut, index) => ({
     id: `shortcut:${shortcut.id}`,
     position: defaultShortcutPosition(index),
-    content: <FreeShortcut shortcut={shortcut} />,
+    content: <FreeShortcut shortcut={shortcut} onEdit={setEditingShortcut} />,
   }));
   const widgetDefaults = visibleWidgets.map((key, index) => ({
     id: `widget:${key}`,
@@ -79,34 +86,95 @@ export function FreeDashboard() {
   }));
 
   return (
-    <div ref={boardRef} className="free-board">
-      {[...systemDefaults, ...shortcutDefaults, ...widgetDefaults].map((item) => (
-        <FreeItem
-          key={item.id}
-          boardRef={boardRef}
-          compact={item.id.startsWith("shortcut:")}
-          stretch={item.id.startsWith("widget:")}
-          resizable={item.id.startsWith("widget:")}
-          position={(layout.freeItems ?? defaultLayout.freeItems)[item.id] ?? item.position}
-          onMove={(position) => updateFreeItemPosition(item.id, position)}
-        >
-          {item.content}
-        </FreeItem>
-      ))}
-    </div>
+    <>
+      <div ref={boardRef} className="free-board">
+        {[...systemDefaults, ...shortcutDefaults, ...widgetDefaults].map((item) => (
+          <FreeItem
+            key={item.id}
+            boardRef={boardRef}
+            compact={item.id.startsWith("shortcut:")}
+            stretch={item.id.startsWith("widget:")}
+            resizable={item.id.startsWith("widget:")}
+            position={(layout.freeItems ?? defaultLayout.freeItems)[item.id] ?? item.position}
+            onMove={(position) => updateFreeItemPosition(item.id, position)}
+          >
+            {item.content}
+          </FreeItem>
+        ))}
+      </div>
+      {editingShortcut && (
+        <ShortcutEditorModal
+          shortcut={editingShortcut}
+          onClose={() => setEditingShortcut(null)}
+          onSave={(shortcut: ShortcutFormState, id?: string) => {
+            if (id) updateShortcut(id, shortcut);
+            else addShortcut(shortcut);
+            setEditingShortcut(null);
+          }}
+          onDelete={(id) => {
+            deleteShortcut(id);
+            setEditingShortcut(null);
+          }}
+        />
+      )}
+    </>
   );
 }
 
-function FreeShortcut({ shortcut }: { shortcut: Shortcut }) {
+function FreeShortcut({ shortcut, onEdit }: { shortcut: Shortcut; onEdit: (shortcut: Shortcut) => void }) {
   const iconSize = useDashboardStore((state) => state.settings.iconSize);
+  const longPressTimer = useRef<number | null>(null);
+  const longPressOpened = useRef(false);
+  const pointerStart = useRef({ x: 0, y: 0 });
+
+  function clearLongPressTimer() {
+    if (!longPressTimer.current) return;
+    window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+    longPressOpened.current = false;
+    clearLongPressTimer();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressOpened.current = true;
+      onEdit(shortcut);
+    }, 550);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const moved = Math.hypot(event.clientX - pointerStart.current.x, event.clientY - pointerStart.current.y);
+    if (moved > 8) clearLongPressTimer();
+  }
+
+  function handlePointerUp() {
+    clearLongPressTimer();
+  }
 
   function openShortcut() {
-    if (shortcut.openInNewTab) window.open(shortcut.url, "_blank", "noopener,noreferrer");
-    else window.location.href = shortcut.url;
+    if (longPressOpened.current) {
+      longPressOpened.current = false;
+      return;
+    }
+
+    const url = normalizeShortcutUrl(shortcut.url);
+    if (shortcut.openInNewTab) window.open(url, "_blank", "noopener,noreferrer");
+    else window.location.href = url;
   }
 
   return (
-    <button type="button" className="shortcut-card free-shortcut-card" onClick={openShortcut}>
+    <button
+      type="button"
+      className="shortcut-card free-shortcut-card"
+      onClick={openShortcut}
+      onPointerDown={handlePointerDown}
+      onPointerMove={handlePointerMove}
+      onPointerUp={handlePointerUp}
+      onPointerCancel={handlePointerUp}
+      onContextMenu={(event) => event.preventDefault()}
+      onDoubleClick={(event) => { event.preventDefault(); onEdit(shortcut); }}
+    >
       <ShortcutIcon shortcut={shortcut} size={iconSize} />
       <span className="max-w-full truncate text-sm">{shortcut.name}</span>
     </button>
@@ -223,11 +291,11 @@ function defaultShortcutPosition(index: number): FreeItemPosition {
   const rowIndex = isFirstRow ? index : index - firstRowCount;
   const rowCount = isFirstRow ? firstRowCount : 6;
   const startCol = Math.floor((GRID_COLUMNS - rowCount * 2) / 2);
-  return gridPosition(startCol + rowIndex * 2, isFirstRow ? 10 : 13, 2, 2.5);
+  return gridPosition(startCol + rowIndex * 2, isFirstRow ? 9 : 12, 2, 2.5);
 }
 
 function defaultWidgetPosition(index: number): FreeItemPosition {
-  return gridPosition(4 + index * 6, 17, 5.5, 4.8);
+  return gridPosition(4 + index * 6, 16, 5.5, 4.8);
 }
 
 function gridPosition(col: number, row: number, width: number, height: number): FreeItemPosition {

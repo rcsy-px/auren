@@ -64,7 +64,13 @@ export type DashboardData = {
 export type Profile = {
   id: string;
   name: string;
+  avatarUrl?: string;
   createdAt: string;
   updatedAt: string;
   data: DashboardData;
+};
+
+export type DashboardSnapshot = {
+  profiles: Profile[];
+  activeProfileId: string;
 };

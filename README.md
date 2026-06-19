@@ -17,12 +17,57 @@ Modern, self-hosted böngésző kezdőlap és home lab dashboard. Az első MVP R
 
 ## Helyi futtatás
 
+Két folyamat kell: a React/Vite frontend és a központi JSON storage API.
+
 ```bash
 npm install
+npm run dev:api
 npm run dev
 ```
 
-Az app alapértelmezés szerint a Vite által kiírt lokális címen nyílik meg, például `http://localhost:5173`.
+Az app alapértelmezés szerint a Vite által kiírt lokális címen nyílik meg, például `http://localhost:5173`. A Vite `/api` kéréseket a `http://localhost:8080` alatt futó Node szerverre proxyzza.
+
+Production build lokális indítása:
+
+```bash
+npm run build
+npm start
+```
+
+Ezután: `http://localhost:8080`
+
+## Központi profilmentés
+
+A profilok és dashboard adatok központi JSON fájlba mentődnek:
+
+```text
+data/dashboard.json
+```
+
+Minden kliens induláskor ezt tölti be, és módosítás után ide ment. Ha több gépen van megnyitva, az egyszerű szabály érvényes: az utolsó sikeres mentés nyer.
+
+## Időjárás
+
+Az időjárás kijelzés WeatherAPI.com kulccsal működik. Ha nincs kulcs megadva, az app nem jelenít meg időjárás blokkot. A kulcs megadható a Beállítások modalban, vagy környezeti változóként.
+
+Beállításokban megadva a kulcs ebbe a backend-only fájlba kerül:
+
+```text
+data/weather-key.json
+```
+
+Helyi indítás előtt:
+
+```bash
+$env:WEATHERAPI_KEY="sajat-kulcs"
+npm run dev:api
+```
+
+Docker alatt `.env` fájlba vagy környezeti változóként adható meg:
+
+```env
+WEATHERAPI_KEY=sajat-kulcs
+```
 
 ## Docker
 
@@ -31,6 +76,8 @@ docker compose up --build
 ```
 
 Ezután: `http://localhost:8080`
+
+A `docker-compose.yml` a `./data` mappát volume-ként csatolja, így a mentések konténer újraindítás után is megmaradnak.
 
 ## Új lapként használat
 

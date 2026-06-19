@@ -5,6 +5,7 @@ import { uid } from "../lib/storage";
 import type {
   DashboardData,
   DashboardLayout,
+  DashboardSnapshot,
   FreeItemPosition,
   Profile,
   Settings,
@@ -101,6 +102,7 @@ type State = {
   createProfile: (name: string) => void;
   switchProfile: (id: string) => void;
   renameProfile: (id: string, name: string) => void;
+  updateProfileAvatar: (id: string, avatarUrl: string) => void;
   deleteProfile: (id: string) => void;
   addShortcut: (shortcut: Omit<Shortcut, "id" | "order">) => void;
   updateShortcut: (id: string, shortcut: Partial<Shortcut>) => void;
@@ -116,6 +118,7 @@ type State = {
   reorderWidgets: (keys: WidgetKey[]) => void;
   updateFreeItemPosition: (id: string, position: FreeItemPosition) => void;
   resetFreeLayout: () => void;
+  hydrateSnapshot: (snapshot: DashboardSnapshot) => void;
 };
 
 const activeData = (state: State): DashboardData => ({
@@ -132,6 +135,22 @@ const stampActiveProfile = (state: State, data: DashboardData) => ({
       ? { ...profile, data, updatedAt: new Date().toISOString() }
       : profile,
   ),
+});
+
+const normalizeSnapshot = (snapshot: DashboardSnapshot): DashboardSnapshot => {
+  const profiles = snapshot.profiles?.length
+    ? snapshot.profiles.map((profile) => ({ ...profile, data: normalizeData(profile.data) }))
+    : [defaultProfile];
+  const activeProfileId = profiles.some((profile) => profile.id === snapshot.activeProfileId)
+    ? snapshot.activeProfileId
+    : profiles[0].id;
+
+  return { profiles, activeProfileId };
+};
+
+export const createDashboardSnapshot = (state: Pick<State, "profiles" | "activeProfileId">): DashboardSnapshot => ({
+  profiles: state.profiles,
+  activeProfileId: state.activeProfileId,
 });
 
 export const useDashboardStore = create<State>()(
@@ -164,6 +183,14 @@ export const useDashboardStore = create<State>()(
           profiles: state.profiles.map((profile) =>
             profile.id === id
               ? { ...profile, name: name.trim() || profile.name, updatedAt: new Date().toISOString() }
+              : profile,
+          ),
+        })),
+      updateProfileAvatar: (id, avatarUrl) =>
+        set((state) => ({
+          profiles: state.profiles.map((profile) =>
+            profile.id === id
+              ? { ...profile, avatarUrl: avatarUrl.trim() || undefined, updatedAt: new Date().toISOString() }
               : profile,
           ),
         })),
@@ -291,6 +318,16 @@ export const useDashboardStore = create<State>()(
           };
           return { ...data, ...stampActiveProfile(state, data) };
         }),
+      hydrateSnapshot: (snapshot) =>
+        set(() => {
+          const next = normalizeSnapshot(snapshot);
+          const activeProfile = next.profiles.find((profile) => profile.id === next.activeProfileId) ?? next.profiles[0];
+          return {
+            profiles: next.profiles,
+            activeProfileId: activeProfile.id,
+            ...activeProfile.data,
+          };
+        }),
     }),
     {
       name: "auren-dashboard",
@@ -314,15 +351,12 @@ export const useDashboardStore = create<State>()(
       merge: (persisted, current) => {
         const state = persisted as Partial<State>;
         if (!state.profiles?.length || !state.activeProfileId) return { ...current, ...state };
-        const profiles = state.profiles.map((profile) => ({
-          ...profile,
-          data: normalizeData(profile.data),
-        }));
-        const activeProfile = profiles.find((profile) => profile.id === state.activeProfileId) ?? profiles[0];
+        const snapshot = normalizeSnapshot({ profiles: state.profiles, activeProfileId: state.activeProfileId });
+        const activeProfile = snapshot.profiles.find((profile) => profile.id === snapshot.activeProfileId) ?? snapshot.profiles[0];
         return {
           ...current,
           ...state,
-          profiles,
+          profiles: snapshot.profiles,
           activeProfileId: activeProfile.id,
           ...activeProfile.data,
         };

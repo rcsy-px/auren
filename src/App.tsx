@@ -1,5 +1,5 @@
 import type { CSSProperties } from "react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { ClockWeather } from "./components/ClockWeather";
 import { DashboardWidgets } from "./components/DashboardWidgets";
 import { FreeDashboard } from "./components/FreeDashboard";
@@ -7,12 +7,15 @@ import { SearchBar } from "./components/SearchBar";
 import { SettingsModal } from "./components/SettingsModal";
 import { ShortcutGrid } from "./components/ShortcutGrid";
 import { Sidebar } from "./components/Sidebar";
+import { startDashboardSync } from "./lib/dashboardSync";
 import { defaultLayout, useDashboardStore } from "./store/dashboardStore";
 
 export function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const settings = useDashboardStore((state) => state.settings);
   const layout = useDashboardStore((state) => state.layout ?? defaultLayout);
+
+  useEffect(() => startDashboardSync(), []);
 
   return (
     <main

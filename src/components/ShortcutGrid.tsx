@@ -13,25 +13,16 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus, Trash2 } from "lucide-react";
-import type { CSSProperties } from "react";
-import { FormEvent, useMemo, useState } from "react";
-import { supportedIconSlugs } from "../lib/simpleIcons";
+import { Plus } from "lucide-react";
+import type { CSSProperties, PointerEvent } from "react";
+import { useMemo, useRef, useState } from "react";
+import { normalizeShortcutUrl } from "../lib/url";
 import { useDashboardStore } from "../store/dashboardStore";
 import type { Shortcut } from "../types/dashboard";
+import { ShortcutEditorModal } from "./ShortcutEditorModal";
 import { ShortcutIcon } from "./ShortcutIcon";
 
 type FormState = Omit<Shortcut, "id" | "order">;
-
-const blankShortcut: FormState = {
-  name: "",
-  url: "",
-  icon: "",
-  iconSlug: "",
-  color: "#60a5fa",
-  category: "Egyéb",
-  openInNewTab: true,
-};
 
 export function ShortcutGrid() {
   const shortcuts = useDashboardStore((state) => state.shortcuts);
@@ -42,7 +33,6 @@ export function ShortcutGrid() {
   const reorderShortcuts = useDashboardStore((state) => state.reorderShortcuts);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Shortcut | null>(null);
-  const [form, setForm] = useState<FormState>(blankShortcut);
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const sorted = useMemo(() => [...shortcuts].sort((a, b) => a.order - b.order), [shortcuts]);
 
@@ -55,18 +45,23 @@ export function ShortcutGrid() {
 
   function openForm(shortcut?: Shortcut) {
     setEditing(shortcut ?? null);
-    setForm(shortcut ? { ...shortcut } : blankShortcut);
     setFormOpen(true);
   }
 
-  function handleSubmit(event: FormEvent) {
-    event.preventDefault();
-    if (!form.name.trim() || !form.url.trim()) return;
-    if (editing) updateShortcut(editing.id, form);
-    else addShortcut({ ...form, icon: form.icon || form.name.slice(0, 2).toUpperCase() });
+  function closeForm() {
     setEditing(null);
-    setForm(blankShortcut);
     setFormOpen(false);
+  }
+
+  function saveShortcut(shortcut: FormState, id?: string) {
+    if (id) updateShortcut(id, shortcut);
+    else addShortcut(shortcut);
+    closeForm();
+  }
+
+  function removeShortcut(id: string) {
+    deleteShortcut(id);
+    closeForm();
   }
 
   return (
@@ -86,40 +81,12 @@ export function ShortcutGrid() {
       </DndContext>
 
       {formOpen && (
-        <div className="modal-backdrop" onMouseDown={() => { setFormOpen(false); setForm(blankShortcut); }}>
-          <form className="modal-panel" onSubmit={handleSubmit} onMouseDown={(event) => event.stopPropagation()}>
-            <h2 className="text-xl font-medium">{editing ? "Shortcut szerkesztése" : "Új shortcut"}</h2>
-            <div className="mt-5 grid gap-3 sm:grid-cols-2">
-              <input className="field" placeholder="Név" value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-              <input className="field" placeholder="URL" value={form.url} onChange={(e) => setForm({ ...form, url: e.target.value })} />
-              <input className="field" placeholder="Simple Icons slug, pl. github" value={form.iconSlug ?? ""} onChange={(e) => setForm({ ...form, iconSlug: e.target.value })} />
-              <input className="field" placeholder="Fallback ikon vagy rövidítés" value={form.icon} onChange={(e) => setForm({ ...form, icon: e.target.value })} />
-              <input className="field" placeholder="Kategória" value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-              <label className="field flex items-center gap-3">
-                <input type="color" value={form.color} onChange={(e) => setForm({ ...form, color: e.target.value })} />
-                Szín
-              </label>
-              <label className="field flex items-center gap-3">
-                <input type="checkbox" checked={form.openInNewTab} onChange={(e) => setForm({ ...form, openInNewTab: e.target.checked })} />
-                Új lapon nyitás
-              </label>
-            </div>
-            <p className="mt-3 text-sm text-slate-300/62">
-              Támogatott brand ikonok: {supportedIconSlugs.join(", ")}. Ismeretlen slug esetén a fallback jelenik meg.
-            </p>
-            <div className="mt-5 flex justify-between gap-3">
-              {editing && (
-                <button className="danger-button" type="button" onClick={() => { deleteShortcut(editing.id); setEditing(null); setForm(blankShortcut); setFormOpen(false); }}>
-                  <Trash2 size={18} /> Törlés
-                </button>
-              )}
-              <div className="ml-auto flex gap-3">
-                <button className="ghost-button" type="button" onClick={() => { setEditing(null); setForm(blankShortcut); setFormOpen(false); }}>Mégse</button>
-                <button className="primary-button" type="submit">Mentés</button>
-              </div>
-            </div>
-          </form>
-        </div>
+        <ShortcutEditorModal
+          shortcut={editing}
+          onClose={closeForm}
+          onSave={saveShortcut}
+          onDelete={removeShortcut}
+        />
       )}
     </>
   );
@@ -128,28 +95,73 @@ export function ShortcutGrid() {
 function SortableShortcut({ shortcut, onEdit }: { shortcut: Shortcut; onEdit: (shortcut: Shortcut) => void }) {
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: shortcut.id });
   const iconSize = useDashboardStore((state) => state.settings.iconSize);
+  const longPressTimer = useRef<number | null>(null);
+  const longPressOpened = useRef(false);
+  const pointerStart = useRef({ x: 0, y: 0 });
+
+  function clearLongPressTimer() {
+    if (!longPressTimer.current) return;
+    window.clearTimeout(longPressTimer.current);
+    longPressTimer.current = null;
+  }
+
+  function handlePointerDown(event: PointerEvent<HTMLButtonElement>) {
+    pointerStart.current = { x: event.clientX, y: event.clientY };
+    longPressOpened.current = false;
+    clearLongPressTimer();
+    longPressTimer.current = window.setTimeout(() => {
+      longPressOpened.current = true;
+      onEdit(shortcut);
+    }, 550);
+  }
+
+  function handlePointerMove(event: PointerEvent<HTMLButtonElement>) {
+    const moved = Math.hypot(event.clientX - pointerStart.current.x, event.clientY - pointerStart.current.y);
+    if (moved > 8) clearLongPressTimer();
+  }
+
+  function handlePointerUp() {
+    clearLongPressTimer();
+  }
 
   function openShortcut() {
-    if (shortcut.openInNewTab) window.open(shortcut.url, "_blank", "noopener,noreferrer");
-    else window.location.href = shortcut.url;
+    if (longPressOpened.current) {
+      longPressOpened.current = false;
+      return;
+    }
+
+    const url = normalizeShortcutUrl(shortcut.url);
+    if (shortcut.openInNewTab) window.open(url, "_blank", "noopener,noreferrer");
+    else window.location.href = url;
   }
 
   return (
-    <button
+    <div
       ref={setNodeRef}
       style={{ transform: CSS.Transform.toString(transform), transition }}
-      className="shortcut-card group"
-      type="button"
-      onClick={openShortcut}
-      onDoubleClick={(event) => { event.preventDefault(); onEdit(shortcut); }}
-      {...attributes}
-      {...listeners}
     >
-      <ShortcutIcon shortcut={shortcut} size={iconSize} />
-      <span className="max-w-full truncate text-sm">{shortcut.name}</span>
-      <span className="absolute right-2 top-2 hidden rounded-full bg-white/10 px-2 py-1 text-[10px] text-white/70 group-hover:block">
-        dupla katt
-      </span>
-    </button>
+      <button
+        className="shortcut-card group h-full w-full"
+        type="button"
+        onClick={openShortcut}
+        {...attributes}
+        {...listeners}
+        onPointerDown={(event) => {
+          (listeners?.onPointerDown as ((event: PointerEvent<HTMLButtonElement>) => void) | undefined)?.(event);
+          handlePointerDown(event);
+        }}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onContextMenu={(event) => event.preventDefault()}
+        onDoubleClick={(event) => { event.preventDefault(); onEdit(shortcut); }}
+      >
+        <ShortcutIcon shortcut={shortcut} size={iconSize} />
+        <span className="max-w-full truncate text-sm">{shortcut.name}</span>
+        <span className="absolute right-2 top-2 hidden rounded-full bg-white/10 px-2 py-1 text-[10px] text-white/70 group-hover:block">
+          szerkesztés
+        </span>
+      </button>
+    </div>
   );
 }
