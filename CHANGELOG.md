@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.1 - 2026-06-28
+
+### Fixed
+
+- Added a browser-compatible UUID fallback for non-secure HTTP contexts where `crypto.randomUUID()` is unavailable.
+
 ## 0.1.0 - 2026-06-28
 
 Initial public release of Auren Dashboard.

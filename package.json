@@ -1,6 +1,6 @@
 {
   "name": "auren-dashboard",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Self-hosted browser start page and home lab dashboard.",
   "private": true,
   "type": "module",
