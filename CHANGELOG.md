@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.2 - 2026-06-28
+
+### Fixed
+
+- Fixed Docker bind-mount persistence by preparing the data directory permissions before starting the Node server.
+
 ## 0.1.1 - 2026-06-28
 
 ### Fixed
