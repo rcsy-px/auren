@@ -46,6 +46,16 @@ export type Settings = {
   searchProvider: SearchProvider;
   timeFormat: "12" | "24";
   weatherLocation: string;
+  calendar: {
+    daysAhead: number;
+    maxEvents: number;
+    showLocation: boolean;
+    showSource: boolean;
+    sourceScope: "global" | "profile";
+  };
+  shortcuts: {
+    showCategoriesOnDashboard: boolean;
+  };
   widgets: {
     calendar: boolean;
     todos: boolean;

@@ -3,7 +3,11 @@ import { ChangeEvent, FormEvent, useEffect, useMemo, useState } from "react";
 import { resizeImageFile } from "../lib/image";
 import { useDashboardStore } from "../store/dashboardStore";
 
-export function ProfileManager() {
+type Props = {
+  compact?: boolean;
+};
+
+export function ProfileManager({ compact = false }: Props) {
   const profiles = useDashboardStore((state) => state.profiles);
   const activeProfileId = useDashboardStore((state) => state.activeProfileId);
   const createProfile = useDashboardStore((state) => state.createProfile);
@@ -56,22 +60,24 @@ export function ProfileManager() {
   }
 
   return (
-    <section className="profile-panel">
-      <header className="flex items-center gap-3">
-        <span className="profile-preview">
-          {avatarValue && !avatarPreviewFailed ? (
-            <img src={avatarValue} alt="" onError={() => setAvatarPreviewFailed(true)} />
-          ) : (
-            <span>{initial}</span>
-          )}
-        </span>
-        <div>
-          <h3 className="text-base font-medium text-white">Profilok</h3>
-          <p className="text-sm text-slate-300/70">Az aktív munkamenet: {activeProfile?.name || initial}</p>
-        </div>
-      </header>
+    <section className={`profile-panel ${compact ? "profile-panel-compact" : ""}`}>
+      {!compact && (
+        <header className="flex items-center gap-3">
+          <span className="profile-preview">
+            {avatarValue && !avatarPreviewFailed ? (
+              <img src={avatarValue} alt="" onError={() => setAvatarPreviewFailed(true)} />
+            ) : (
+              <span>{initial}</span>
+            )}
+          </span>
+          <div>
+            <h3 className="text-base font-medium text-white">Profilok</h3>
+            <p className="text-sm text-slate-300/70">Az aktív munkamenet: {activeProfile?.name || initial}</p>
+          </div>
+        </header>
+      )}
 
-      <div className="mt-4 grid gap-3 sm:grid-cols-[1fr_auto]">
+      <div className={`${compact ? "" : "mt-4"} grid gap-3 sm:grid-cols-[1fr_auto]`}>
         <select
           className="field"
           value={activeProfileId}

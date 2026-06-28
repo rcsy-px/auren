@@ -1,6 +1,10 @@
 services:
   auren:
-    image: ${AUREN_IMAGE:-ghcr.io/rcsy-px/auren}:${AUREN_VERSION:-latest}
+    build:
+      context: .
+      args:
+        VERSION: ${AUREN_VERSION:-local}
+    image: ${AUREN_IMAGE:-auren-dashboard}:${AUREN_VERSION:-local}
     ports:
       - "${AUREN_PORT:-8080}:8080"
     environment:

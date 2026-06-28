@@ -1,109 +1,240 @@
 # Auren Dashboard
 
-Modern, self-hosted böngésző kezdőlap és home lab dashboard. Az első MVP React + TypeScript + Vite alapon fut, LocalStorage-ba ment, és Dockerrel is indítható.
+Modern self-hosted browser start page and home lab dashboard.
 
-## Funkciók
+Auren is a quiet, glassy, profile-aware dashboard for shortcuts, notes, todos, calendars, and lightweight personal/family workspace views. It is built for trusted home networks, homelabs, Tailscale/VPN setups, and reverse-proxy deployments.
 
-- glassmorphism dashboard hegyes háttérrel
-- gyorsindító ikonrács hozzáadás/szerkesztés/törlés funkcióval
-- drag & drop rendezés shortcutokhoz és teendőkhöz
-- rácsos és szabad vásznas elrendezés
-- keresősáv URL felismeréssel és választható keresőmotorral
-- naptár mock adatokkal
-- LocalStorage-os teendők és gyors jegyzet
-- több helyi profil aktív munkamenet választással
-- Simple Icons alapú brand ikonok a fontosabb weboldalakhoz
-- beállítások: háttér, blur, kártya áttetszőség, ikonméret, rács, üdvözlés, kereső, óraformátum, widgetek
+![Auren logo](public/aurenlogo.png)
 
-## Helyi futtatás
+## Highlights
 
-Két folyamat kell: a React/Vite frontend és a központi JSON storage API.
+- React + TypeScript + Vite frontend
+- small Node.js backend with JSON-file storage
+- multi-profile dashboard state
+- shortcut grid and library with categories
+- drag-and-drop ordering for shortcuts, todos, and widgets
+- grid layout and free-canvas layout
+- quick search with URL detection and configurable provider
+- notes workspace with simple Markdown preview
+- todo widget and dashboard widgets
+- WeatherAPI.com integration with global API key and per-profile location
+- iCal and CalDAV calendar integration
+- global or per-profile calendar source mode
+- Docker-first deployment with GHCR image versioning
+- `/api/health` and `/api/version` endpoints
+- in-app update badge when a newer release is available
+
+## Quick Start With Docker
+
+Create a compose file:
+
+```yaml
+services:
+  auren:
+    image: ghcr.io/rcsy-px/auren:latest
+    ports:
+      - "8080:8080"
+    environment:
+      - WEATHERAPI_KEY=${WEATHERAPI_KEY:-}
+      - AUREN_RELEASE_REPO=rcsy-px/auren
+      - AUREN_UPDATE_CHECK=true
+    volumes:
+      - ./data:/app/data
+    restart: unless-stopped
+```
+
+Run it:
+
+```bash
+docker compose up -d
+```
+
+Open:
+
+```text
+http://localhost:8080
+```
+
+The `./data` volume stores dashboard profiles and backend-only secrets.
+
+## Updating
+
+If you use `latest`:
+
+```bash
+docker compose pull
+docker compose up -d
+```
+
+If you prefer pinned versions:
+
+```yaml
+image: ghcr.io/rcsy-px/auren:0.1.0
+```
+
+Then update the tag when you are ready.
+
+Auren checks GitHub releases/tags through `/api/version`. When a newer version is available, a small green badge appears on the Settings icon. Disable outbound update checks with:
+
+```env
+AUREN_UPDATE_CHECK=false
+```
+
+## Local Development
+
+Install dependencies:
 
 ```bash
 npm install
-npm run dev:api
-npm run dev
 ```
 
-Az app alapértelmezés szerint a Vite által kiírt lokális címen nyílik meg, például `http://localhost:5173`. A Vite `/api` kéréseket a `http://localhost:8080` alatt futó Node szerverre proxyzza.
+Run the backend and frontend in separate terminals:
 
-Production build lokális indítása:
+```bash
+npm run dev:api
+npm run dev -- --port 5173
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+The Vite dev server proxies `/api` to `http://localhost:8080`.
+
+Build and run production locally:
 
 ```bash
 npm run build
 npm start
 ```
 
-Ezután: `http://localhost:8080`
+## Local Docker Build
 
-## Központi profilmentés
+For development or testing without a published image:
 
-A profilok és dashboard adatok központi JSON fájlba mentődnek:
+```bash
+docker compose -f docker-compose.local.yml up --build
+```
+
+## Configuration
+
+Copy the example environment file if you are running from this repository:
+
+```bash
+cp .env.example .env
+```
+
+Useful variables:
+
+```env
+AUREN_IMAGE=ghcr.io/rcsy-px/auren
+AUREN_VERSION=latest
+AUREN_PORT=8080
+WEATHERAPI_KEY=
+AUREN_RELEASE_REPO=rcsy-px/auren
+AUREN_UPDATE_CHECK=true
+```
+
+## Storage
+
+Auren stores runtime data in the mounted `data/` directory:
 
 ```text
 data/dashboard.json
+data/weather-key.json
+data/calendar-source.json
 ```
 
-Minden kliens induláskor ezt tölti be, és módosítás után ide ment. Ha több gépen van megnyitva, az egyszerű szabály érvényes: az utolsó sikeres mentés nyer.
+These files are intentionally ignored by Git.
 
-## Időjárás
+The dashboard snapshot stores:
 
-Az időjárás kijelzés WeatherAPI.com kulccsal működik. Ha nincs kulcs megadva, az app nem jelenít meg időjárás blokkot. A kulcs megadható a Beállítások modalban, vagy környezeti változóként.
+- profiles
+- active profile ID
+- shortcuts
+- todos
+- notes
+- profile-specific settings
+- layout data
 
-Beállításokban megadva a kulcs ebbe a backend-only fájlba kerül:
+Backend-only files store:
+
+- WeatherAPI key
+- iCal URL
+- CalDAV URL, username, and password/app password
+
+## Profiles
+
+Each profile has its own dashboard data:
+
+- shortcuts
+- todos
+- note
+- visual settings
+- layout mode and free-canvas positions
+- weather location
+- calendar widget settings
+
+The WeatherAPI key is global. The calendar source can be global or profile-specific.
+
+## Calendar
+
+Auren supports:
+
+- iCal feed URLs
+- basic CalDAV connections
+- Basic and Digest auth
+- simple recurring events: `DAILY`, `WEEKLY`, `MONTHLY`, `YEARLY`
+- global family calendar mode
+- per-profile calendar source mode
+
+Calendar secrets are never sent to the frontend. The frontend receives normalized events from `/api/calendar`.
+
+## Security Notes
+
+Auren currently has no built-in login system. Deploy it on a trusted LAN, over VPN/Tailscale, or behind reverse-proxy authentication.
+
+Do not expose it directly to the public internet without an auth layer.
+
+## Release Process
+
+The repository includes a GHCR publish workflow at `.github/workflows/docker-publish.yml`.
+
+Create a release by pushing a version tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+Published images:
 
 ```text
-data/weather-key.json
+ghcr.io/rcsy-px/auren:0.1.0
+ghcr.io/rcsy-px/auren:0.1
 ```
 
-Helyi indítás előtt:
+Pushes to `main` publish `latest`.
 
-```bash
-$env:WEATHERAPI_KEY="sajat-kulcs"
-npm run dev:api
+See [RELEASE.md](RELEASE.md) for the full checklist.
+
+## API Endpoints
+
+```text
+GET /api/health
+GET /api/version
+GET /api/dashboard
+PUT /api/dashboard
+GET /api/weather?location=Budapest
+GET /api/weather/key
+PUT /api/weather/key
+GET /api/calendar?scope=global|profile&profileId=...
+GET /api/calendar/source?scope=global|profile&profileId=...
+PUT /api/calendar/source?scope=global|profile&profileId=...
 ```
 
-Docker alatt `.env` fájlba vagy környezeti változóként adható meg:
+## License
 
-```env
-WEATHERAPI_KEY=sajat-kulcs
-```
-
-## Docker
-
-```bash
-docker compose up --build
-```
-
-Ezután: `http://localhost:8080`
-
-A `docker-compose.yml` a `./data` mappát volume-ként csatolja, így a mentések konténer újraindítás után is megmaradnak.
-
-## Új lapként használat
-
-Chrome/Edge alatt telepíthető egy new tab redirect bővítmény, amelynek cél URL-je legyen a lokális vagy Dockeres cím. Self-hosted használatnál érdemes fix portot vagy reverse proxy címet adni neki.
-
-## Testreszabás
-
-A shortcutokat a `Hozzáadás` kártyával lehet felvenni. Dupla kattintással szerkeszthető egy meglévő shortcut, törölhető, és állítható az ikon, szín, kategória és új lapon nyitás. A drag & drop sorrend azonnal mentődik LocalStorage-ba.
-
-Brand ikonhoz a `Simple Icons slug` mezőbe írható például `github`, `youtube`, `notion`, `spotify`, `gmail`, `figma`, `reddit`, `googledrive` vagy `googlecalendar`. Ha nincs találat, a fallback ikon/rövidítés jelenik meg.
-
-## Elrendezés
-
-A beállításokban váltható a `Rácsos, automatikus` és a `Szabad vászon` mód. Rácsos módban a shortcutok és widgetek rendezhetők, a felület automatikusan alkalmazkodik a kijelzőhöz. Szabad vászon módban a hero, kereső, óra, shortcutok, widgetek és idézet a jobb felső mozgató fogantyúval húzhatók a teljes képernyőn. A mozgatás 24 x 18-as százalékos snap gridre ugrik, ezért rendezett marad és monitorváltásnál is arányosan skálázódik.
-
-Az alapértelmezett shortcutok a [src/data/defaultShortcuts.ts](/D:/Apps/GitHub/auren/src/data/defaultShortcuts.ts) fájlban vannak.
-
-## Profilok
-
-A beállítások modalban kezelhetők a profilok: választható az aktív profil, létrehozható új, átnevezhető vagy törölhető a jelenlegi profil. Minden profil külön shortcut, todo, jegyzet és beállítás adatcsomagot kap. Az aktív profil azonosítója és a profiladatok LocalStorage-ban tárolódnak, így ugyanazon böngészőben nem keverednek a munkamenetek.
-
-## Jövőbeli ötletek
-
-- Open-Meteo időjárás integráció
-- CalDAV/Google Calendar naptár integráció
-- Home Assistant widgetek
-- több felhasználós backend és auth
-- import/export JSON konfiguráció
-- PWA offline mód
+No license has been declared yet. Add one before accepting outside contributions.

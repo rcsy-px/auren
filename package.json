@@ -1,8 +1,17 @@
 {
   "name": "auren-dashboard",
   "version": "0.1.0",
+  "description": "Self-hosted browser start page and home lab dashboard.",
   "private": true,
   "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rcsy-px/auren.git"
+  },
+  "bugs": {
+    "url": "https://github.com/rcsy-px/auren/issues"
+  },
+  "homepage": "https://github.com/rcsy-px/auren#readme",
   "scripts": {
     "dev": "vite --host 0.0.0.0",
     "dev:api": "node server.js",

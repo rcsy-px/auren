@@ -50,6 +50,7 @@ export function FreeDashboard() {
   const systemDefaults = [
     {
       id: "system:hero",
+      navId: undefined,
       position: gridPosition(8, 2, 8, 3),
       content: (
         <header className="dashboard-hero free-hero">
@@ -60,27 +61,32 @@ export function FreeDashboard() {
     },
     {
       id: "system:search",
+      navId: undefined,
       position: gridPosition(7, 6, 10, 1.5),
       content: <SearchBar />,
     },
     {
       id: "system:clock",
+      navId: undefined,
       position: gridPosition(19, 1, 4, 3),
       content: <ClockWeather inline />,
     },
     {
       id: "system:quote",
+      navId: undefined,
       position: gridPosition(8, 21, 8, 1),
       content: <p className="dashboard-quote free-quote">„A figyelem a legértékesebb valuta.” - James Clear</p>,
     },
   ];
   const shortcutDefaults = shortcuts.map((shortcut, index) => ({
     id: `shortcut:${shortcut.id}`,
+    navId: index === 0 ? "shortcuts-section" : undefined,
     position: defaultShortcutPosition(index),
     content: <FreeShortcut shortcut={shortcut} onEdit={setEditingShortcut} />,
   }));
   const widgetDefaults = visibleWidgets.map((key, index) => ({
     id: `widget:${key}`,
+    navId: undefined,
     position: defaultWidgetPosition(index),
     content: widgetComponents[key],
   }));
@@ -91,6 +97,7 @@ export function FreeDashboard() {
         {[...systemDefaults, ...shortcutDefaults, ...widgetDefaults].map((item) => (
           <FreeItem
             key={item.id}
+            navId={item.navId ?? navIdForFreeItem(item.id)}
             boardRef={boardRef}
             compact={item.id.startsWith("shortcut:")}
             stretch={item.id.startsWith("widget:")}
@@ -182,6 +189,7 @@ function FreeShortcut({ shortcut, onEdit }: { shortcut: Shortcut; onEdit: (short
 }
 
 function FreeItem({
+  navId,
   boardRef,
   position,
   onMove,
@@ -190,6 +198,7 @@ function FreeItem({
   resizable = true,
   stretch = false,
 }: {
+  navId?: string;
   boardRef: React.RefObject<HTMLDivElement | null>;
   position: FreeItemPosition;
   onMove: (position: FreeItemPosition) => void;
@@ -245,6 +254,7 @@ function FreeItem({
   return (
     <div
       ref={itemRef}
+      id={navId}
       className={`free-item ${compact ? "free-item-compact" : ""} ${stretch ? "free-item-stretch" : ""}`}
       style={
         {
@@ -283,6 +293,13 @@ function FreeItem({
       )}
     </div>
   );
+}
+
+function navIdForFreeItem(id: string) {
+  if (id === "system:hero") return "dashboard-section";
+  if (id === "widget:calendar") return "widget-calendar";
+  if (id === "widget:notes") return "widget-notes";
+  return undefined;
 }
 
 function defaultShortcutPosition(index: number): FreeItemPosition {

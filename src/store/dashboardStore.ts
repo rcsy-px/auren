@@ -24,6 +24,16 @@ export const defaultSettings: Settings = {
   searchProvider: "google",
   timeFormat: "24",
   weatherLocation: "Budapest",
+  calendar: {
+    daysAhead: 14,
+    maxEvents: 8,
+    showLocation: true,
+    showSource: false,
+    sourceScope: "global",
+  },
+  shortcuts: {
+    showCategoriesOnDashboard: false,
+  },
   widgets: { calendar: true, todos: true, notes: true },
 };
 
@@ -75,6 +85,14 @@ const normalizeData = (data: DashboardData): DashboardData => ({
   settings: {
     ...defaultSettings,
     ...data.settings,
+    calendar: {
+      ...defaultSettings.calendar,
+      ...(data.settings?.calendar ?? {}),
+    },
+    shortcuts: {
+      ...defaultSettings.shortcuts,
+      ...(data.settings?.shortcuts ?? {}),
+    },
     widgets: {
       ...defaultSettings.widgets,
       ...(data.settings?.widgets ?? {}),

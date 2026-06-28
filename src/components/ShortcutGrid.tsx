@@ -13,9 +13,9 @@ import {
   useSortable,
 } from "@dnd-kit/sortable";
 import { CSS } from "@dnd-kit/utilities";
-import { Plus } from "lucide-react";
+import { Layers3, Plus } from "lucide-react";
 import type { CSSProperties, PointerEvent } from "react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { normalizeShortcutUrl } from "../lib/url";
 import { useDashboardStore } from "../store/dashboardStore";
 import type { Shortcut } from "../types/dashboard";
@@ -33,8 +33,29 @@ export function ShortcutGrid() {
   const reorderShortcuts = useDashboardStore((state) => state.reorderShortcuts);
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<Shortcut | null>(null);
+  const [activeCategory, setActiveCategory] = useState("Összes");
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
   const sorted = useMemo(() => [...shortcuts].sort((a, b) => a.order - b.order), [shortcuts]);
+  const categories = useMemo(() => {
+    const unique = [...new Set(sorted.map((shortcut) => shortcut.category?.trim() || "Egyéb"))].sort((a, b) => a.localeCompare(b, "hu"));
+    return ["Összes", ...unique];
+  }, [sorted]);
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>([["Összes", sorted.length]]);
+    for (const shortcut of sorted) {
+      const key = shortcut.category?.trim() || "Egyéb";
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+    return counts;
+  }, [sorted]);
+  const visibleShortcuts = useMemo(
+    () => activeCategory === "Összes" ? sorted : sorted.filter((shortcut) => (shortcut.category?.trim() || "Egyéb") === activeCategory),
+    [activeCategory, sorted],
+  );
+
+  useEffect(() => {
+    if (!categories.includes(activeCategory)) setActiveCategory("Összes");
+  }, [activeCategory, categories]);
 
   function handleDragEnd(event: DragEndEvent) {
     if (!event.over || event.active.id === event.over.id) return;
@@ -66,19 +87,53 @@ export function ShortcutGrid() {
 
   return (
     <>
-      <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-        <SortableContext items={sorted.map((item) => item.id)} strategy={rectSortingStrategy}>
-          <div className="shortcut-grid" style={{ "--shortcut-columns": settings.columns } as CSSProperties}>
-            {sorted.map((shortcut) => (
-              <SortableShortcut key={shortcut.id} shortcut={shortcut} onEdit={openForm} />
-            ))}
-            <button type="button" onClick={() => openForm()} className="shortcut-card" title="Shortcut hozzáadása">
-              <Plus size={34} className="mb-3 text-slate-200/85" />
-              <span>Hozzáadás</span>
+      {settings.shortcuts.showCategoriesOnDashboard ? (
+        <div id="shortcuts-section" className="shortcut-category-panel">
+          <div className="shortcut-category-dock glass">
+            <div className="shortcut-category-current">
+              <span className="shortcut-category-icon"><Layers3 size={17} /></span>
+              <span>
+                <strong>{activeCategory}</strong>
+                <small>{categoryCounts.get(activeCategory) ?? 0} shortcut</small>
+              </span>
+            </div>
+            <div className="shortcut-category-tabs" aria-label="Shortcut kategóriák">
+              {categories.map((category) => (
+                <button
+                  key={category}
+                  className={activeCategory === category ? "is-active" : ""}
+                  type="button"
+                  onClick={() => setActiveCategory(category)}
+                >
+                  <span>{category}</span>
+                </button>
+              ))}
+            </div>
+            <button type="button" onClick={() => openForm()} className="shortcut-category-add-button" title="Shortcut hozzáadása">
+              <Plus size={18} />
             </button>
           </div>
-        </SortableContext>
-      </DndContext>
+          <div className="shortcut-grid shortcut-category-grid" style={{ "--shortcut-columns": settings.columns } as CSSProperties}>
+            {visibleShortcuts.map((shortcut) => (
+              <StaticShortcut key={shortcut.id} shortcut={shortcut} onEdit={openForm} />
+            ))}
+          </div>
+        </div>
+      ) : (
+        <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <SortableContext items={sorted.map((item) => item.id)} strategy={rectSortingStrategy}>
+            <div id="shortcuts-section" className="shortcut-grid" style={{ "--shortcut-columns": settings.columns } as CSSProperties}>
+              {sorted.map((shortcut) => (
+                <SortableShortcut key={shortcut.id} shortcut={shortcut} onEdit={openForm} />
+              ))}
+              <button type="button" onClick={() => openForm()} className="shortcut-card" title="Shortcut hozzáadása">
+                <Plus size={34} className="mb-3 text-slate-200/85" />
+                <span>Hozzáadás</span>
+              </button>
+            </div>
+          </SortableContext>
+        </DndContext>
+      )}
 
       {formOpen && (
         <ShortcutEditorModal
@@ -89,6 +144,32 @@ export function ShortcutGrid() {
         />
       )}
     </>
+  );
+}
+
+function StaticShortcut({ shortcut, onEdit }: { shortcut: Shortcut; onEdit: (shortcut: Shortcut) => void }) {
+  const iconSize = useDashboardStore((state) => state.settings.iconSize);
+
+  function openShortcut() {
+    const url = normalizeShortcutUrl(shortcut.url);
+    if (shortcut.openInNewTab) window.open(url, "_blank", "noopener,noreferrer");
+    else window.location.href = url;
+  }
+
+  return (
+    <button
+      className="shortcut-card group h-full w-full"
+      type="button"
+      onClick={openShortcut}
+      onContextMenu={(event) => event.preventDefault()}
+      onDoubleClick={(event) => { event.preventDefault(); onEdit(shortcut); }}
+    >
+      <ShortcutIcon shortcut={shortcut} size={iconSize} />
+      <span className="max-w-full truncate text-sm">{shortcut.name}</span>
+      <span className="absolute right-2 top-2 hidden rounded-full bg-white/10 px-2 py-1 text-[10px] text-white/70 group-hover:block">
+        szerkesztés
+      </span>
+    </button>
   );
 }
 

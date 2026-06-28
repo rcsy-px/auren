@@ -1,0 +1,16 @@
+# Changelog
+
+## 0.1.0 - 2026-06-28
+
+Initial public release of Auren Dashboard.
+
+### Added
+
+- Self-hosted React/Vite dashboard with a small Node backend.
+- Profile-based dashboard data, notes, todos, settings, layout, and shortcuts.
+- Central JSON snapshot storage in `data/dashboard.json`.
+- Shortcut library with category filtering, grid/list views, editing, and drag-and-drop ordering.
+- Grid and free-canvas dashboard layouts.
+- WeatherAPI.com proxy with a global API key and per-profile weather location.
+- iCal and CalDAV calendar support with global or per-profile source scope.
+- Docker image workflow, Compose files, health endpoint, and version/update checks.

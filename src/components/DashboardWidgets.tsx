@@ -55,6 +55,7 @@ function SortableWidget({ id, children }: { id: WidgetKey; children: ReactNode }
   return (
     <div
       ref={setNodeRef}
+      id={`widget-${id}`}
       className="widget-sortable"
       style={{ transform: CSS.Transform.toString(transform), transition }}
       {...attributes}
