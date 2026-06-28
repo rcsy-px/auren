@@ -1139,11 +1139,21 @@ body {
   transition: background 160ms var(--motion-soft), border-color 160ms var(--motion-soft), color 160ms var(--motion-soft), transform 160ms var(--motion-soft);
 }
 
+.settings-nav-item.has-update {
+  border-color: rgba(74, 222, 128, 0.22);
+}
+
 .settings-nav-item:hover,
 .settings-nav-item.is-active {
   border-color: rgba(125, 211, 252, 0.15);
   background: rgba(125, 211, 252, 0.1);
   color: white;
+}
+
+.settings-nav-item.has-update:hover,
+.settings-nav-item.has-update.is-active {
+  border-color: rgba(74, 222, 128, 0.34);
+  background: rgba(74, 222, 128, 0.1);
 }
 
 .settings-nav-item:hover {
@@ -1168,6 +1178,7 @@ body {
 
 .settings-nav-copy {
   display: grid;
+  flex: 1;
   min-width: 0;
   gap: 2px;
 }
@@ -1191,6 +1202,21 @@ body {
 
 .settings-nav-item.is-active .settings-nav-copy small {
   color: rgba(186, 230, 253, 0.72);
+}
+
+.settings-nav-badge {
+  display: inline-flex;
+  flex: 0 0 auto;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: rgba(34, 197, 94, 0.18);
+  color: rgba(187, 247, 208, 0.98);
+  font-size: 11px;
+  font-weight: 800;
+  line-height: 1;
+  padding: 5px 7px;
+  box-shadow: 0 0 0 1px rgba(74, 222, 128, 0.28);
 }
 
 .settings-content {

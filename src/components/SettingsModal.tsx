@@ -159,20 +159,24 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
 
         <div className="settings-layout">
           <nav className="settings-nav" aria-label="Beállítás kategóriák">
-            {settingsTabs.map((tab) => (
-              <button
-                key={tab.id}
-                className={`settings-nav-item ${activeTab === tab.id ? "is-active" : ""}`}
-                type="button"
-                onClick={() => setActiveTab(tab.id)}
-              >
-                <span className="settings-nav-icon">{tab.icon}</span>
-                <span className="settings-nav-copy">
-                  <span>{tab.title}</span>
-                  <small>{tab.description}</small>
-                </span>
-              </button>
-            ))}
+            {settingsTabs.map((tab) => {
+              const hasUpdateBadge = tab.id === "system" && versionInfo?.updateAvailable;
+              return (
+                <button
+                  key={tab.id}
+                  className={`settings-nav-item ${activeTab === tab.id ? "is-active" : ""} ${hasUpdateBadge ? "has-update" : ""}`}
+                  type="button"
+                  onClick={() => setActiveTab(tab.id)}
+                >
+                  <span className="settings-nav-icon">{tab.icon}</span>
+                  <span className="settings-nav-copy">
+                    <span>{tab.title}</span>
+                    <small>{hasUpdateBadge ? "Új verzió elérhető" : tab.description}</small>
+                  </span>
+                  {hasUpdateBadge && <span className="settings-nav-badge">Új</span>}
+                </button>
+              );
+            })}
           </nav>
 
           <div className="settings-content">

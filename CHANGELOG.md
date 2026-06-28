@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.3 - 2026-06-28
+
+### Changed
+
+- Added an in-settings update badge on the System tab when a newer version is available.
+
 ## 0.1.2 - 2026-06-28
 
 ### Fixed
