@@ -941,7 +941,7 @@ function readRequestBody(request) {
     request.setEncoding("utf8");
     request.on("data", (chunk) => {
       body += chunk;
-      if (body.length > 2_000_000) {
+      if (body.length > 8_000_000) {
         reject(new Error("Request body too large"));
         request.destroy();
       }

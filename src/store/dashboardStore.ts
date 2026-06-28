@@ -16,6 +16,9 @@ import type {
 
 export const defaultSettings: Settings = {
   background: "image",
+  backgroundImageUrl: "",
+  backgroundFit: "cover",
+  backgroundDim: 0,
   blur: 18,
   glassOpacity: 0.12,
   iconSize: 56,

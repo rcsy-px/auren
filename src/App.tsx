@@ -25,6 +25,8 @@ export function App() {
 
   useEffect(() => startDashboardSync(), []);
 
+  const backgroundStyle = getBackgroundStyle(settings);
+
   function handleSidebarNavigate(target: SidebarTarget) {
     setActiveSidebarTarget(target);
     setSettingsOpen(false);
@@ -34,15 +36,20 @@ export function App() {
 
   return (
     <main
-      className={`min-h-screen overflow-x-hidden text-white ${settings.background === "image" ? "bg-dashboard" : "bg-auren-gradient"}`}
+      className={`min-h-screen overflow-x-hidden text-white ${settings.background === "gradient" ? "bg-auren-gradient" : "bg-dashboard"}`}
       style={
         {
           "--glass-blur": `${settings.blur}px`,
           "--glass-opacity": settings.glassOpacity,
+          "--background-dim": settings.backgroundDim ?? 0,
+          ...backgroundStyle,
         } as CSSProperties
       }
     >
       <div className="fixed inset-0 bg-[radial-gradient(circle_at_50%_8%,rgba(255,255,255,0.10),transparent_34%),linear-gradient(180deg,rgba(8,13,22,0.30),rgba(5,9,15,0.86))]" />
+      {(settings.backgroundDim ?? 0) > 0 && (
+        <div className="pointer-events-none fixed inset-0 bg-black opacity-[var(--background-dim)]" />
+      )}
       <Sidebar
         activeTarget={activeSidebarTarget}
         onNavigate={handleSidebarNavigate}
@@ -78,6 +85,25 @@ export function App() {
       <ProfileModal open={profileOpen} onClose={() => setProfileOpen(false)} />
     </main>
   );
+}
+
+function getBackgroundStyle(settings: ReturnType<typeof useDashboardStore.getState>["settings"]): CSSProperties {
+  if (settings.background !== "custom" || !settings.backgroundImageUrl) return {};
+
+  const fit = settings.backgroundFit ?? "cover";
+  const base: CSSProperties = {
+    backgroundImage: `url("${settings.backgroundImageUrl}")`,
+    backgroundAttachment: "fixed",
+    backgroundPosition: "center",
+    backgroundRepeat: "no-repeat",
+    backgroundSize: "cover",
+  };
+
+  if (fit === "contain") return { ...base, backgroundSize: "contain" };
+  if (fit === "fill") return { ...base, backgroundSize: "100% 100%" };
+  if (fit === "center") return { ...base, backgroundSize: "auto" };
+  if (fit === "repeat") return { ...base, backgroundSize: "auto", backgroundRepeat: "repeat" };
+  return base;
 }
 
 function DashboardHome({ greeting }: { greeting: string }) {

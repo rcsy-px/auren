@@ -44,7 +44,7 @@ export function Sidebar({ activeTarget, onNavigate, onOpenSettings, onOpenProfil
       >
         <img src="/aurenlogo_withoutName.png" alt="" />
       </button>
-      <nav className="mt-28 flex flex-1 flex-col items-center gap-5">
+      <nav className="sidebar-nav mt-28 flex flex-1 flex-col items-center gap-5">
         {navItems.map(({ icon: Icon, label, target }) => (
           <button
             key={label}

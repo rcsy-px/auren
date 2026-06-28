@@ -23,6 +23,8 @@ export type WidgetKey = "calendar" | "todos" | "notes";
 
 export type LayoutMode = "grid" | "free";
 
+export type BackgroundFit = "cover" | "contain" | "fill" | "center" | "repeat";
+
 export type FreeItemPosition = {
   x: number;
   y: number;
@@ -37,7 +39,10 @@ export type DashboardLayout = {
 };
 
 export type Settings = {
-  background: "image" | "gradient";
+  background: "image" | "gradient" | "custom";
+  backgroundImageUrl?: string;
+  backgroundFit: BackgroundFit;
+  backgroundDim: number;
   blur: number;
   glassOpacity: number;
   iconSize: number;

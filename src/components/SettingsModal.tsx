@@ -1,11 +1,12 @@
-import { BadgeInfo, Brush, CalendarDays, CheckCircle2, Clock3, CloudSun, ExternalLink, Grid3X3, Image, KeyRound, LayoutDashboard, ListTodo, RotateCcw, Search, SlidersHorizontal, Sparkles, X } from "lucide-react";
-import type { ReactNode } from "react";
+import { BadgeInfo, Brush, CalendarDays, CheckCircle2, Clock3, CloudSun, ExternalLink, Grid3X3, Image, ImagePlus, KeyRound, LayoutDashboard, ListTodo, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import type { ChangeEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
 import { fetchCalendarSourceStatus, saveCalendarSource, type CalendarSourceStatus, type CalendarSourceType } from "../lib/calendar";
+import { resizeImageFile } from "../lib/image";
 import { fetchVersionInfo, type VersionInfo } from "../lib/version";
 import { fetchWeatherKeyStatus, saveWeatherApiKey, type WeatherKeyStatus } from "../lib/weather";
 import { defaultLayout, useDashboardStore } from "../store/dashboardStore";
-import type { LayoutMode, SearchProvider } from "../types/dashboard";
+import type { BackgroundFit, LayoutMode, SearchProvider } from "../types/dashboard";
 
 type Props = {
   open: boolean;
@@ -43,6 +44,7 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
   const [calendarMessage, setCalendarMessage] = useState("");
   const [versionInfo, setVersionInfo] = useState<VersionInfo | null>(null);
   const [versionMessage, setVersionMessage] = useState("");
+  const [activePreviewSlider, setActivePreviewSlider] = useState<string | null>(null);
   const settings = useDashboardStore((state) => state.settings);
   const layout = useDashboardStore((state) => state.layout ?? defaultLayout);
   const activeProfileId = useDashboardStore((state) => state.activeProfileId);
@@ -117,6 +119,21 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
     return () => controller.abort();
   }, [activeProfileId, open, settings.calendar.sourceScope]);
 
+  useEffect(() => {
+    if (!activePreviewSlider) return;
+
+    const stopPreview = () => setActivePreviewSlider(null);
+    window.addEventListener("pointerup", stopPreview);
+    window.addEventListener("pointercancel", stopPreview);
+    window.addEventListener("blur", stopPreview);
+
+    return () => {
+      window.removeEventListener("pointerup", stopPreview);
+      window.removeEventListener("pointercancel", stopPreview);
+      window.removeEventListener("blur", stopPreview);
+    };
+  }, [activePreviewSlider]);
+
   async function handleWeatherKeySave() {
     try {
       const result = await saveWeatherApiKey(weatherKey);
@@ -142,11 +159,28 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
     }
   }
 
+  async function handleBackgroundBrowse(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const dataUrl = await resizeImageFile(file, 1920, 0.82);
+      updateSettings({
+        background: "custom",
+        backgroundImageUrl: dataUrl,
+        backgroundFit: settings.backgroundFit ?? "cover",
+      });
+    } catch (error) {
+      console.warn("Background image resize failed", error);
+    }
+  }
+
   if (!rendered) return null;
 
   return (
-    <div className={`modal-backdrop ${closing ? "is-closing" : ""}`} onMouseDown={onClose}>
-      <section className={`modal-panel settings-modal ${closing ? "is-closing" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
+    <div className={`modal-backdrop ${closing ? "is-closing" : ""} ${activePreviewSlider ? "is-previewing" : ""}`} onMouseDown={onClose}>
+      <section className={`modal-panel settings-modal ${closing ? "is-closing" : ""} ${activePreviewSlider ? "is-previewing" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
         <header className="settings-header">
           <div>
             <p className="settings-kicker">Auren Dashboard</p>
@@ -209,14 +243,93 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
               <SettingsSection icon={<Brush size={18} />} title="Megjelenés">
                 <label className="settings-control">
                   <span className="settings-control-label"><Image size={16} /> Háttér</span>
-                  <select className="field" value={settings.background} onChange={(e) => updateSettings({ background: e.target.value as "image" | "gradient" })}>
-                    <option value="image">Hegyes kép</option>
+                  <select className="field" value={settings.background} onChange={(e) => updateSettings({ background: e.target.value as "image" | "gradient" | "custom" })}>
+                    <option value="image">Alap kép</option>
+                    <option value="custom">Saját kép</option>
                     <option value="gradient">Gradient</option>
                   </select>
                 </label>
-                <Slider label="Blur" value={settings.blur} min={6} max={30} onChange={(blur) => updateSettings({ blur })} />
-                <Slider label="Glass átlátszóság" value={settings.glassOpacity} min={0.06} max={0.26} step={0.01} onChange={(glassOpacity) => updateSettings({ glassOpacity })} />
-                <Slider label="Ikonméret" value={settings.iconSize} min={42} max={74} onChange={(iconSize) => updateSettings({ iconSize })} />
+                <label className="settings-control">
+                  <span className="settings-control-label"><Image size={16} /> Illesztés</span>
+                  <select
+                    className="field"
+                    value={settings.backgroundFit ?? "cover"}
+                    disabled={settings.background === "gradient"}
+                    onChange={(e) => updateSettings({ backgroundFit: e.target.value as BackgroundFit })}
+                  >
+                    <option value="cover">Kitöltés</option>
+                    <option value="contain">Teljes kép látszódjon</option>
+                    <option value="fill">Nyújtás</option>
+                    <option value="center">Eredeti méret középen</option>
+                    <option value="repeat">Mozaik</option>
+                  </select>
+                </label>
+                <div className="settings-control settings-control-wide">
+                  <span className="settings-control-label"><ImagePlus size={16} /> Saját háttérkép</span>
+                  <div
+                    className={`background-preview ${settings.backgroundImageUrl ? "has-image" : ""}`}
+                    style={settings.backgroundImageUrl ? { backgroundImage: `url("${settings.backgroundImageUrl}")` } : undefined}
+                  >
+                    {!settings.backgroundImageUrl && <span>Nincs saját kép kiválasztva</span>}
+                  </div>
+                  <div className="flex flex-wrap gap-3">
+                    <label className="ghost-button cursor-pointer">
+                      <ImagePlus size={17} /> Tallózás
+                      <input className="sr-only" type="file" accept="image/*" onChange={handleBackgroundBrowse} />
+                    </label>
+                    <button
+                      className="ghost-button"
+                      type="button"
+                      disabled={!settings.backgroundImageUrl}
+                      onClick={() => updateSettings({ backgroundImageUrl: "", background: "image" })}
+                    >
+                      <Trash2 size={16} /> Törlés
+                    </button>
+                  </div>
+                  <span className="text-xs text-slate-300/62">Profilhoz mentett beállítás.</span>
+                </div>
+                <Slider
+                  label="Elsötétítés"
+                  value={settings.backgroundDim ?? 0}
+                  min={0}
+                  max={0.75}
+                  step={0.01}
+                  previewId="backgroundDim"
+                  activePreviewId={activePreviewSlider}
+                  onPreviewStart={setActivePreviewSlider}
+                  onChange={(backgroundDim) => updateSettings({ backgroundDim })}
+                />
+                <Slider
+                  label="Blur"
+                  value={settings.blur}
+                  min={6}
+                  max={30}
+                  previewId="blur"
+                  activePreviewId={activePreviewSlider}
+                  onPreviewStart={setActivePreviewSlider}
+                  onChange={(blur) => updateSettings({ blur })}
+                />
+                <Slider
+                  label="Glass átlátszóság"
+                  value={settings.glassOpacity}
+                  min={0.06}
+                  max={0.26}
+                  step={0.01}
+                  previewId="glassOpacity"
+                  activePreviewId={activePreviewSlider}
+                  onPreviewStart={setActivePreviewSlider}
+                  onChange={(glassOpacity) => updateSettings({ glassOpacity })}
+                />
+                <Slider
+                  label="Ikonméret"
+                  value={settings.iconSize}
+                  min={42}
+                  max={74}
+                  previewId="iconSize"
+                  activePreviewId={activePreviewSlider}
+                  onPreviewStart={setActivePreviewSlider}
+                  onChange={(iconSize) => updateSettings({ iconSize })}
+                />
               </SettingsSection>
             )}
 
@@ -538,11 +651,44 @@ function SettingsSection({ icon, title, children }: { icon: ReactNode; title: st
   );
 }
 
-function Slider({ label, value, min, max, step = 1, onChange }: { label: string; value: number; min: number; max: number; step?: number; onChange: (value: number) => void }) {
+function Slider({
+  label,
+  value,
+  min,
+  max,
+  step = 1,
+  previewId,
+  activePreviewId,
+  onPreviewStart,
+  onChange,
+}: {
+  label: string;
+  value: number;
+  min: number;
+  max: number;
+  step?: number;
+  previewId?: string;
+  activePreviewId?: string | null;
+  onPreviewStart?: (id: string) => void;
+  onChange: (value: number) => void;
+}) {
+  const isPreviewing = Boolean(previewId && activePreviewId === previewId);
+  const displayValue = max <= 1 ? `${Math.round(value * 100)}%` : step < 1 ? value.toFixed(2) : value;
+
   return (
-    <label className="settings-control">
-      <span className="settings-range-head"><span>{label}</span><span>{value}</span></span>
-      <input className="settings-range" type="range" min={min} max={max} step={step} value={value} onChange={(e) => onChange(Number(e.target.value))} />
+    <label className={`settings-control ${isPreviewing ? "is-preview-control" : ""}`}>
+      <span className="settings-range-head"><span>{label}</span><span>{displayValue}</span></span>
+      <input
+        className="settings-range"
+        type="range"
+        min={min}
+        max={max}
+        step={step}
+        value={value}
+        onPointerDown={() => previewId && onPreviewStart?.(previewId)}
+        onInput={(e) => onChange(Number(e.currentTarget.value))}
+        onChange={(e) => onChange(Number(e.target.value))}
+      />
     </label>
   );
 }
