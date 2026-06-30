@@ -1,6 +1,7 @@
 import { Grip, MoveDiagonal2 } from "lucide-react";
 import type { CSSProperties, PointerEvent, ReactNode } from "react";
 import { useMemo, useRef, useState } from "react";
+import { useI18n } from "../i18n";
 import { defaultLayout, useDashboardStore } from "../store/dashboardStore";
 import type { FreeItemPosition, Shortcut, WidgetKey } from "../types/dashboard";
 import { normalizeShortcutUrl } from "../lib/url";
@@ -23,6 +24,8 @@ const GRID_COLUMNS = 24;
 const GRID_ROWS = 24;
 const SNAP_X = 100 / GRID_COLUMNS;
 const SNAP_Y = 100 / GRID_ROWS;
+const MIN_WIDGET_COLUMNS = 5;
+const MIN_WIDGET_ROWS = 4;
 
 const snap = (value: number, unit: number) => Math.round(value / unit) * unit;
 const roundCoord = (value: number) => Number(value.toFixed(4));
@@ -38,6 +41,7 @@ export function FreeDashboard() {
   const deleteShortcut = useDashboardStore((state) => state.deleteShortcut);
   const updateFreeItemPosition = useDashboardStore((state) => state.updateFreeItemPosition);
   const [editingShortcut, setEditingShortcut] = useState<Shortcut | null>(null);
+  const { t } = useI18n();
   const shortcuts = useMemo(
     () => [...storedShortcuts].sort((a, b) => a.order - b.order),
     [storedShortcuts],
@@ -55,7 +59,7 @@ export function FreeDashboard() {
       content: (
         <header className="dashboard-hero free-hero">
           <h1 className="hero-title">{settings.greeting}</h1>
-          <p className="hero-subtitle">Fókuszálj a fontos dolgokra.</p>
+          <p className="hero-subtitle">{t("app.heroSubtitle")}</p>
         </header>
       ),
     },
@@ -75,7 +79,7 @@ export function FreeDashboard() {
       id: "system:quote",
       navId: undefined,
       position: gridPosition(8, 21, 8, 1),
-      content: <p className="dashboard-quote free-quote">„A figyelem a legértékesebb valuta.” - James Clear</p>,
+      content: <p className="dashboard-quote free-quote">{t("app.quote")}</p>,
     },
   ];
   const shortcutDefaults = shortcuts.map((shortcut, index) => ({
@@ -102,7 +106,11 @@ export function FreeDashboard() {
             compact={item.id.startsWith("shortcut:")}
             stretch={item.id.startsWith("widget:")}
             resizable={item.id.startsWith("widget:")}
-            position={(layout.freeItems ?? defaultLayout.freeItems)[item.id] ?? item.position}
+            minSize={item.id.startsWith("widget:") ? { w: MIN_WIDGET_COLUMNS * SNAP_X, h: MIN_WIDGET_ROWS * SNAP_Y } : undefined}
+            position={constrainFreePosition(
+              (layout.freeItems ?? defaultLayout.freeItems)[item.id] ?? item.position,
+              item.id.startsWith("widget:") ? { w: MIN_WIDGET_COLUMNS * SNAP_X, h: MIN_WIDGET_ROWS * SNAP_Y } : undefined,
+            )}
             onMove={(position) => updateFreeItemPosition(item.id, position)}
           >
             {item.content}
@@ -197,6 +205,7 @@ function FreeItem({
   compact = false,
   resizable = true,
   stretch = false,
+  minSize,
 }: {
   navId?: string;
   boardRef: React.RefObject<HTMLDivElement | null>;
@@ -206,8 +215,10 @@ function FreeItem({
   compact?: boolean;
   resizable?: boolean;
   stretch?: boolean;
+  minSize?: Pick<FreeItemPosition, "w" | "h">;
 }) {
   const [delta, setDelta] = useState({ x: 0, y: 0 });
+  const { t } = useI18n();
   const itemRef = useRef<HTMLDivElement>(null);
   const startRef = useRef<{ x: number; y: number; mode: "move" | "resize" } | null>(null);
   const isMoving = startRef.current?.mode === "move";
@@ -229,16 +240,22 @@ function FreeItem({
       const itemRect = itemRef.current?.getBoundingClientRect();
       const compactWidth = itemRect ? (itemRect.width / rect.width) * 100 : position.w;
       const compactHeight = itemRect ? (itemRect.height / rect.height) * 100 : position.h;
-      const maxX = 100 - (compact ? compactWidth : position.w);
-      const maxY = 100 - (compact ? compactHeight : position.h);
       const dx = (delta.x / rect.width) * 100;
       const dy = (delta.y / rect.height) * 100;
+      const minW = minSize?.w ?? SNAP_X * 3;
+      const minH = minSize?.h ?? SNAP_Y * 3;
+      const nextW = roundCoord(clamp(snap(position.w + dx, SNAP_X), minW, 100 - position.x));
+      const nextH = roundCoord(clamp(snap(position.h + dy, SNAP_Y), minH, 100 - position.y));
+      const moveWidth = compact ? compactWidth : position.w;
+      const moveHeight = compact ? compactHeight : position.h;
+      const maxX = 100 - moveWidth;
+      const maxY = 100 - moveHeight;
       const next =
         startRef.current.mode === "resize"
           ? {
               ...position,
-              w: roundCoord(clamp(snap(position.w + dx, SNAP_X), SNAP_X * 3, 100 - position.x)),
-              h: roundCoord(clamp(snap(position.h + dy, SNAP_Y), SNAP_Y * 3, 100 - position.y)),
+              w: nextW,
+              h: nextH,
             }
           : {
               ...position,
@@ -251,6 +268,12 @@ function FreeItem({
     setDelta({ x: 0, y: 0 });
   }
 
+  const boardRect = boardRef.current?.getBoundingClientRect();
+  const minWidthPx = boardRect && minSize ? (minSize.w / 100) * boardRect.width : 0;
+  const minHeightPx = boardRect && minSize ? (minSize.h / 100) * boardRect.height : 0;
+  const resizingWidth = isResizing ? `max(${minWidthPx}px, calc(${position.w}% + ${delta.x}px))` : `${position.w}%`;
+  const resizingHeight = isResizing ? `max(${minHeightPx}px, calc(${position.h}% + ${delta.y}px))` : `${position.h}%`;
+
   return (
     <div
       ref={itemRef}
@@ -260,8 +283,10 @@ function FreeItem({
         {
           left: `${position.x}%`,
           top: `${position.y}%`,
-          width: compact ? undefined : `calc(${position.w}% + ${isResizing ? Math.max(0, delta.x) : 0}px)`,
-          height: compact ? undefined : `calc(${position.h}% + ${isResizing ? Math.max(0, delta.y) : 0}px)`,
+          width: compact ? undefined : resizingWidth,
+          height: compact ? undefined : resizingHeight,
+          minWidth: compact ? undefined : minSize ? `${minWidthPx}px` : undefined,
+          minHeight: compact ? undefined : minSize ? `${minHeightPx}px` : undefined,
           transform: isMoving ? `translate(${delta.x}px, ${delta.y}px)` : undefined,
         } as CSSProperties
       }
@@ -269,20 +294,22 @@ function FreeItem({
       <button
         className="free-drag-handle"
         type="button"
-        title="Mozgatás"
+        title={t("common.move")}
         onPointerDown={(event) => handlePointerDown(event, "move")}
         onPointerMove={handlePointerMove}
         onPointerUp={handlePointerUp}
         onPointerCancel={handlePointerUp}
-      >
-        <Grip size={14} />
-      </button>
-      {children}
+        >
+          <Grip size={14} />
+        </button>
+      <div className="free-item-surface">
+        {children}
+      </div>
       {resizable && (
         <button
           className="free-resize-handle"
           type="button"
-          title="Átméretezés"
+          title={t("common.resize")}
           onPointerDown={(event) => handlePointerDown(event, "resize")}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
@@ -302,6 +329,17 @@ function navIdForFreeItem(id: string) {
   return undefined;
 }
 
+function constrainFreePosition(position: FreeItemPosition, minSize?: Pick<FreeItemPosition, "w" | "h">): FreeItemPosition {
+  if (!minSize) return position;
+  const maxW = 100 - position.x;
+  const maxH = 100 - position.y;
+  return {
+    ...position,
+    w: roundCoord(clamp(position.w, Math.min(minSize.w, maxW), maxW)),
+    h: roundCoord(clamp(position.h, Math.min(minSize.h, maxH), maxH)),
+  };
+}
+
 function defaultShortcutPosition(index: number): FreeItemPosition {
   const firstRowCount = 6;
   const isFirstRow = index < firstRowCount;
@@ -312,7 +350,7 @@ function defaultShortcutPosition(index: number): FreeItemPosition {
 }
 
 function defaultWidgetPosition(index: number): FreeItemPosition {
-  return gridPosition(4 + index * 6, 16, 5.5, 4.8);
+  return gridPosition(3 + index * 7, 16, 6, 5);
 }
 
 function gridPosition(col: number, row: number, width: number, height: number): FreeItemPosition {
@@ -323,3 +361,4 @@ function gridPosition(col: number, row: number, width: number, height: number): 
     h: height * SNAP_Y,
   };
 }
+

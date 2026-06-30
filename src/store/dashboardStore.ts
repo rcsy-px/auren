@@ -10,11 +10,13 @@ import type {
   Profile,
   Settings,
   Shortcut,
+  ShortcutCategory,
   Todo,
   WidgetKey,
 } from "../types/dashboard";
 
 export const defaultSettings: Settings = {
+  locale: "hu",
   background: "image",
   backgroundImageUrl: "",
   backgroundFit: "cover",
@@ -46,8 +48,49 @@ export const defaultLayout: DashboardLayout = {
   freeItems: {},
 };
 
+const categoryColors = ["#60a5fa", "#34d399", "#facc15", "#fb7185", "#a78bfa", "#38bdf8", "#f97316", "#f8fafc"];
+
+const normalizeCategoryName = (name?: string) => name?.trim() || "Egyéb";
+
+const createShortcutCategories = (shortcuts: Shortcut[], existing: ShortcutCategory[] = []): ShortcutCategory[] => {
+  const byName = new Map(existing.map((category) => [normalizeCategoryName(category.name).toLowerCase(), category]));
+  const names = [
+    ...existing.map((category) => normalizeCategoryName(category.name)),
+    ...shortcuts.map((shortcut) => normalizeCategoryName(shortcut.category)),
+  ];
+  const uniqueNames = [...new Set(names)];
+
+  return uniqueNames
+    .map((name, index) => {
+      const current = byName.get(name.toLowerCase());
+      return {
+        id: current?.id ?? uid(),
+        name,
+        color: current?.color || categoryColors[index % categoryColors.length],
+        order: current?.order ?? index,
+      };
+    })
+    .sort((a, b) => a.order - b.order || a.name.localeCompare(b.name, "hu"))
+    .map((category, order) => ({ ...category, order }));
+};
+
+const ensureCategory = (categories: ShortcutCategory[], name: string): ShortcutCategory[] => {
+  const categoryName = normalizeCategoryName(name);
+  if (categories.some((category) => category.name.toLowerCase() === categoryName.toLowerCase())) return categories;
+  return [
+    ...categories,
+    {
+      id: uid(),
+      name: categoryName,
+      color: categoryColors[categories.length % categoryColors.length],
+      order: categories.length,
+    },
+  ];
+};
+
 const createDefaultData = (): DashboardData => ({
   shortcuts: defaultShortcuts,
+  shortcutCategories: createShortcutCategories(defaultShortcuts),
   todos: [
     { id: "todo-1", text: "Email válaszok", completed: false, order: 0 },
     { id: "todo-2", text: "Tervezési dokumentum", completed: false, order: 1 },
@@ -83,39 +126,46 @@ const shortcutIconSlugs: Record<string, string> = {
   youtube: "youtube",
 };
 
-const normalizeData = (data: DashboardData): DashboardData => ({
-  ...data,
-  settings: {
-    ...defaultSettings,
-    ...data.settings,
-    calendar: {
-      ...defaultSettings.calendar,
-      ...(data.settings?.calendar ?? {}),
-    },
-    shortcuts: {
-      ...defaultSettings.shortcuts,
-      ...(data.settings?.shortcuts ?? {}),
-    },
-    widgets: {
-      ...defaultSettings.widgets,
-      ...(data.settings?.widgets ?? {}),
-    },
-  },
-  layout: {
-    mode: data.layout?.mode ?? defaultLayout.mode,
-    widgetOrder: data.layout?.widgetOrder ?? defaultLayout.widgetOrder,
-    freeItems: data.layout?.freeItems ?? defaultLayout.freeItems,
-  },
-  shortcuts: data.shortcuts.map((shortcut) => ({
+const normalizeData = (data: DashboardData): DashboardData => {
+  const shortcuts = data.shortcuts.map((shortcut) => ({
     ...shortcut,
+    category: normalizeCategoryName(shortcut.category),
     iconSlug: shortcut.iconSlug || shortcutIconSlugs[shortcut.name.trim().toLowerCase()],
-  })),
-});
+  }));
+
+  return {
+    ...data,
+    settings: {
+      ...defaultSettings,
+      ...data.settings,
+      calendar: {
+        ...defaultSettings.calendar,
+        ...(data.settings?.calendar ?? {}),
+      },
+      shortcuts: {
+        ...defaultSettings.shortcuts,
+        ...(data.settings?.shortcuts ?? {}),
+      },
+      widgets: {
+        ...defaultSettings.widgets,
+        ...(data.settings?.widgets ?? {}),
+      },
+    },
+    layout: {
+      mode: data.layout?.mode ?? defaultLayout.mode,
+      widgetOrder: data.layout?.widgetOrder ?? defaultLayout.widgetOrder,
+      freeItems: data.layout?.freeItems ?? defaultLayout.freeItems,
+    },
+    shortcuts,
+    shortcutCategories: createShortcutCategories(shortcuts, data.shortcutCategories ?? []),
+  };
+};
 
 type State = {
   profiles: Profile[];
   activeProfileId: string;
   shortcuts: Shortcut[];
+  shortcutCategories: ShortcutCategory[];
   todos: Todo[];
   note: string;
   settings: Settings;
@@ -129,6 +179,10 @@ type State = {
   updateShortcut: (id: string, shortcut: Partial<Shortcut>) => void;
   deleteShortcut: (id: string) => void;
   reorderShortcuts: (ids: string[]) => void;
+  addShortcutCategory: (name: string, color?: string) => void;
+  updateShortcutCategory: (id: string, category: Partial<Pick<ShortcutCategory, "name" | "color">>) => void;
+  deleteShortcutCategory: (id: string) => void;
+  reorderShortcutCategories: (ids: string[]) => void;
   addTodo: (text: string) => void;
   toggleTodo: (id: string) => void;
   deleteTodo: (id: string) => void;
@@ -144,6 +198,7 @@ type State = {
 
 const activeData = (state: State): DashboardData => ({
   shortcuts: state.shortcuts,
+  shortcutCategories: state.shortcutCategories,
   todos: state.todos,
   note: state.note,
   settings: state.settings,
@@ -230,17 +285,21 @@ export const useDashboardStore = create<State>()(
         }),
       addShortcut: (shortcut) =>
         set((state) => {
+          const category = normalizeCategoryName(shortcut.category);
           const data = {
             ...activeData(state),
-            shortcuts: [...state.shortcuts, { ...shortcut, id: uid(), order: state.shortcuts.length }],
+            shortcutCategories: ensureCategory(state.shortcutCategories, category),
+            shortcuts: [...state.shortcuts, { ...shortcut, category, id: uid(), order: state.shortcuts.length }],
           };
           return { ...data, ...stampActiveProfile(state, data) };
         }),
       updateShortcut: (id, shortcut) =>
         set((state) => {
+          const category = shortcut.category ? normalizeCategoryName(shortcut.category) : undefined;
           const data = {
             ...activeData(state),
-            shortcuts: state.shortcuts.map((item) => (item.id === id ? { ...item, ...shortcut } : item)),
+            shortcutCategories: category ? ensureCategory(state.shortcutCategories, category) : state.shortcutCategories,
+            shortcuts: state.shortcuts.map((item) => (item.id === id ? { ...item, ...shortcut, ...(category ? { category } : {}) } : item)),
           };
           return { ...data, ...stampActiveProfile(state, data) };
         }),
@@ -250,6 +309,73 @@ export const useDashboardStore = create<State>()(
             ...activeData(state),
             shortcuts: state.shortcuts.filter((item) => item.id !== id),
           };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
+      addShortcutCategory: (name, color) =>
+        set((state) => {
+          const categoryName = normalizeCategoryName(name);
+          if (state.shortcutCategories.some((category) => category.name.toLowerCase() === categoryName.toLowerCase())) return {};
+          const data = {
+            ...activeData(state),
+            shortcutCategories: [
+              ...state.shortcutCategories,
+              {
+                id: uid(),
+                name: categoryName,
+                color: color || categoryColors[state.shortcutCategories.length % categoryColors.length],
+                order: state.shortcutCategories.length,
+              },
+            ],
+          };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
+      updateShortcutCategory: (id, category) =>
+        set((state) => {
+          const current = state.shortcutCategories.find((item) => item.id === id);
+          if (!current) return {};
+          const nextName = category.name ? normalizeCategoryName(category.name) : current.name;
+          const duplicate = state.shortcutCategories.find((item) => item.id !== id && item.name.toLowerCase() === nextName.toLowerCase());
+          const categories = duplicate
+            ? state.shortcutCategories.filter((item) => item.id !== id)
+            : state.shortcutCategories.map((item) => item.id === id ? { ...item, name: nextName, color: category.color || item.color } : item);
+          const data = {
+            ...activeData(state),
+            shortcutCategories: categories.map((item, order) => ({ ...item, order })),
+            shortcuts: state.shortcuts.map((shortcut) =>
+              normalizeCategoryName(shortcut.category).toLowerCase() === current.name.toLowerCase()
+                ? { ...shortcut, category: duplicate?.name ?? nextName }
+                : shortcut,
+            ),
+          };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
+      deleteShortcutCategory: (id) =>
+        set((state) => {
+          const current = state.shortcutCategories.find((item) => item.id === id);
+          if (!current) return {};
+          const fallback = "Egyéb";
+          const shortcuts = state.shortcuts.map((shortcut) =>
+            normalizeCategoryName(shortcut.category).toLowerCase() === current.name.toLowerCase()
+              ? { ...shortcut, category: fallback }
+              : shortcut,
+          );
+          const categories = ensureCategory(
+            state.shortcutCategories.filter((item) => item.id !== id),
+            fallback,
+          ).map((item, order) => ({ ...item, order }));
+          const data = { ...activeData(state), shortcuts, shortcutCategories: categories };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
+      reorderShortcutCategories: (ids) =>
+        set((state) => {
+          const byId = new Map(state.shortcutCategories.map((category) => [category.id, category]));
+          const ordered = ids
+            .map((id, order) => {
+              const category = byId.get(id);
+              return category ? { ...category, order } : null;
+            })
+            .filter((category): category is ShortcutCategory => Boolean(category));
+          const data = { ...activeData(state), shortcutCategories: ordered };
           return { ...data, ...stampActiveProfile(state, data) };
         }),
       reorderShortcuts: (ids) =>
@@ -358,6 +484,7 @@ export const useDashboardStore = create<State>()(
         if (state.profiles?.length && state.activeProfileId) return state;
         const migratedProfile = createProfile("Alap profil", normalizeData({
           shortcuts: state.shortcuts ?? defaultShortcuts,
+          shortcutCategories: createShortcutCategories(state.shortcuts ?? defaultShortcuts, state.shortcutCategories ?? []),
           todos: state.todos ?? createDefaultData().todos,
           note: state.note ?? createDefaultData().note,
           settings: state.settings ?? defaultSettings,

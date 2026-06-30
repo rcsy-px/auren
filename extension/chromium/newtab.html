@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auren New Tab</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body class="newtab-page">
+    <iframe id="dashboard-frame" class="dashboard-frame" title="Auren dashboard" hidden></iframe>
+
+    <button id="settings-button" class="floating-button" type="button" title="Auren New Tab settings" hidden>Settings</button>
+
+    <main id="setup-shell" class="shell" data-view="loading">
+      <section class="panel" aria-live="polite">
+        <p class="kicker">Auren New Tab</p>
+        <h1>Render your dashboard</h1>
+        <p class="copy" id="status">Checking saved dashboard address...</p>
+
+        <form class="form" id="setup-form" hidden>
+          <label for="dashboard-url">Dashboard IP or URL</label>
+          <div class="input-row">
+            <input id="dashboard-url" name="dashboardUrl" type="text" placeholder="192.168.1.50:8080" autocomplete="url" />
+            <button type="submit">Save</button>
+          </div>
+          <p class="hint">Example: 192.168.1.50:8080 or https://dashboard.example.com</p>
+        </form>
+
+        <div class="action-row" id="frame-actions" hidden>
+          <button type="button" id="retry-button">Retry</button>
+          <button type="button" id="open-direct-button" class="secondary-button">Open directly</button>
+          <button type="button" id="change-url-button" class="secondary-button">Change URL</button>
+        </div>
+      </section>
+    </main>
+
+    <script src="shared.js"></script>
+    <script src="newtab.js"></script>
+  </body>
+</html>

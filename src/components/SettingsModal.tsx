@@ -1,12 +1,14 @@
-import { BadgeInfo, Brush, CalendarDays, CheckCircle2, Clock3, CloudSun, ExternalLink, Grid3X3, Image, ImagePlus, KeyRound, LayoutDashboard, ListTodo, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { BadgeInfo, Brush, CalendarDays, CheckCircle2, Clock3, CloudSun, Coffee, ExternalLink, Github, Grid3X3, Image, ImagePlus, KeyRound, Languages, LayoutDashboard, ListTodo, RotateCcw, Search, SlidersHorizontal, Sparkles, Trash2, X } from "lucide-react";
 import type { ChangeEvent, ReactNode } from "react";
 import { useEffect, useState } from "react";
+import { availableLocales } from "../i18n/registry";
+import { useI18n } from "../i18n";
 import { fetchCalendarSourceStatus, saveCalendarSource, type CalendarSourceStatus, type CalendarSourceType } from "../lib/calendar";
 import { resizeImageFile } from "../lib/image";
 import { fetchVersionInfo, type VersionInfo } from "../lib/version";
 import { fetchWeatherKeyStatus, saveWeatherApiKey, type WeatherKeyStatus } from "../lib/weather";
 import { defaultLayout, useDashboardStore } from "../store/dashboardStore";
-import type { BackgroundFit, LayoutMode, SearchProvider } from "../types/dashboard";
+import type { BackgroundFit, LayoutMode, Locale, SearchProvider } from "../types/dashboard";
 
 type Props = {
   open: boolean;
@@ -16,14 +18,14 @@ type Props = {
 
 export type SettingsTab = "general" | "appearance" | "layout" | "weather" | "calendar" | "widgets" | "system";
 
-const settingsTabs: { id: SettingsTab; title: string; description: string; icon: ReactNode }[] = [
-  { id: "general", title: "Általános", description: "Keresés és idő", icon: <SlidersHorizontal size={18} /> },
-  { id: "appearance", title: "Megjelenés", description: "Háttér és üveg", icon: <Brush size={18} /> },
-  { id: "layout", title: "Elrendezés", description: "Rács és vászon", icon: <LayoutDashboard size={18} /> },
-  { id: "weather", title: "Időjárás", description: "Helyszín és API", icon: <CloudSun size={18} /> },
-  { id: "calendar", title: "Naptár", description: "Esemény widget", icon: <CalendarDays size={18} /> },
-  { id: "widgets", title: "Widgetek", description: "Láthatóság", icon: <ListTodo size={18} /> },
-  { id: "system", title: "Rendszer", description: "Verzió és frissítés", icon: <BadgeInfo size={18} /> },
+const settingsTabs: { id: SettingsTab; icon: ReactNode }[] = [
+  { id: "general", icon: <SlidersHorizontal size={18} /> },
+  { id: "appearance", icon: <Brush size={18} /> },
+  { id: "layout", icon: <LayoutDashboard size={18} /> },
+  { id: "weather", icon: <CloudSun size={18} /> },
+  { id: "calendar", icon: <CalendarDays size={18} /> },
+  { id: "widgets", icon: <ListTodo size={18} /> },
+  { id: "system", icon: <BadgeInfo size={18} /> },
 ];
 
 export function SettingsModal({ open, initialTab = "general", onClose }: Props) {
@@ -51,6 +53,7 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
   const updateSettings = useDashboardStore((state) => state.updateSettings);
   const setLayoutMode = useDashboardStore((state) => state.setLayoutMode);
   const resetFreeLayout = useDashboardStore((state) => state.resetFreeLayout);
+  const { t, dateLocale } = useI18n();
 
   useEffect(() => {
     if (open) {
@@ -78,17 +81,17 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
       try {
         const info = await fetchVersionInfo(controller.signal);
         setVersionInfo(info);
-        setVersionMessage(info.error ? "A frissítéskeresés most nem elérhető." : "");
+        setVersionMessage(info.error ? t("settings.weatherUpdateUnavailable") : "");
       } catch {
-        setVersionMessage("A verzióinformáció nem olvasható.");
+        setVersionMessage(t("settings.versionUnreadable"));
       }
 
       try {
         const status = await fetchWeatherKeyStatus(controller.signal);
         setWeatherKeyStatus(status);
-        setWeatherKeyMessage(status.configured ? "WeatherAPI kulcs beállítva." : "Nincs WeatherAPI kulcs megadva.");
+        setWeatherKeyMessage(status.configured ? t("settings.weatherKeyConfigured") : t("settings.weatherKeyMissing"));
       } catch {
-        setWeatherKeyMessage("A kulcs állapota nem olvasható.");
+        setWeatherKeyMessage(t("settings.weatherKeyUnreadable"));
       }
 
       try {
@@ -106,18 +109,18 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
             username: status.username ?? "",
             password: "",
           });
-          setCalendarMessage(status.type === "caldav" ? "CalDAV kapcsolat beállítva." : "iCal feed beállítva.");
+          setCalendarMessage(status.type === "caldav" ? t("settings.calendarSourceConfiguredCaldav") : t("settings.calendarSourceConfiguredIcal"));
         } else {
-          setCalendarMessage("Nincs naptárforrás beállítva.");
+          setCalendarMessage(t("settings.calendarSourceMissing"));
         }
       } catch {
-        setCalendarMessage("A naptárforrás állapota nem olvasható.");
+        setCalendarMessage(t("settings.calendarSourceUnreadable"));
       }
     }
 
     void loadExternalStatuses();
     return () => controller.abort();
-  }, [activeProfileId, open, settings.calendar.sourceScope]);
+  }, [activeProfileId, open, settings.calendar.sourceScope, t]);
 
   useEffect(() => {
     if (!activePreviewSlider) return;
@@ -139,9 +142,9 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
       const result = await saveWeatherApiKey(weatherKey);
       setWeatherKey("");
       setWeatherKeyStatus({ configured: result.configured, source: "settings" });
-      setWeatherKeyMessage(result.configured ? "WeatherAPI kulcs mentve." : "WeatherAPI kulcs törölve.");
+      setWeatherKeyMessage(result.configured ? t("settings.weatherKeySaved") : t("settings.weatherKeyDeleted"));
     } catch {
-      setWeatherKeyMessage("A WeatherAPI kulcs mentése nem sikerült.");
+      setWeatherKeyMessage(t("settings.weatherKeySaveFailed"));
     }
   }
 
@@ -153,10 +156,20 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
       });
       setCalendarSourceStatus(result);
       setCalendarSource((current) => ({ ...current, password: "" }));
-      setCalendarMessage(result.configured ? "Naptárforrás mentve." : "Naptárforrás törölve.");
+      setCalendarMessage(result.configured ? t("settings.calendarSourceSaved") : t("settings.calendarSourceDeleted"));
     } catch {
-      setCalendarMessage("A naptárforrás mentése nem sikerült.");
+      setCalendarMessage(t("settings.calendarSourceSaveFailed"));
     }
+  }
+
+  async function handleCalendarSourceDelete() {
+    const result = await saveCalendarSource(
+      { ...calendarSource, url: "" },
+      { scope: settings.calendar.sourceScope, profileId: activeProfileId },
+    );
+    setCalendarSourceStatus(result);
+    setCalendarSource({ type: "ical", name: "", url: "", username: "", password: "" });
+    setCalendarMessage(t("settings.calendarSourceDeleted"));
   }
 
   async function handleBackgroundBrowse(event: ChangeEvent<HTMLInputElement>) {
@@ -183,16 +196,16 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
       <section className={`modal-panel settings-modal ${closing ? "is-closing" : ""} ${activePreviewSlider ? "is-previewing" : ""}`} onMouseDown={(event) => event.stopPropagation()}>
         <header className="settings-header">
           <div>
-            <p className="settings-kicker">Auren Dashboard</p>
-            <h2 className="settings-title">Beállítások</h2>
+            <p className="settings-kicker">{t("app.name")}</p>
+            <h2 className="settings-title">{t("settings.title")}</h2>
           </div>
-          <button className="icon-button h-10 w-10" type="button" onClick={onClose} title="Bezárás">
+          <button className="icon-button h-10 w-10" type="button" onClick={onClose} title={t("common.close")}>
             <X size={20} />
           </button>
         </header>
 
         <div className="settings-layout">
-          <nav className="settings-nav" aria-label="Beállítás kategóriák">
+          <nav className="settings-nav" aria-label={t("settings.categories")}>
             {settingsTabs.map((tab) => {
               const hasUpdateBadge = tab.id === "system" && versionInfo?.updateAvailable;
               return (
@@ -204,24 +217,46 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
                 >
                   <span className="settings-nav-icon">{tab.icon}</span>
                   <span className="settings-nav-copy">
-                    <span>{tab.title}</span>
-                    <small>{hasUpdateBadge ? "Új verzió elérhető" : tab.description}</small>
+                    <span>{t(`settings.tabs.${tab.id}.title`)}</span>
+                    <small>{hasUpdateBadge ? t("settings.updateAvailable") : t(`settings.tabs.${tab.id}.description`)}</small>
                   </span>
-                  {hasUpdateBadge && <span className="settings-nav-badge">Új</span>}
+                  {hasUpdateBadge && <span className="settings-nav-badge">{t("settings.updateBadge")}</span>}
                 </button>
               );
             })}
+            <div className="settings-branding" aria-label={t("settings.brandingLabel")}>
+              <span className="settings-branding-kicker">{t("settings.brandingKicker")}</span>
+              <a className="settings-branding-link" href="https://github.com/rcsy-px" target="_blank" rel="noreferrer">
+                <Github size={16} />
+                <span>GitHub</span>
+                <ExternalLink size={13} />
+              </a>
+              <a className="settings-branding-link" href="https://ko-fi.com/rycsypx" target="_blank" rel="noreferrer">
+                <Coffee size={16} />
+                <span>Ko-fi</span>
+                <ExternalLink size={13} />
+              </a>
+            </div>
           </nav>
 
           <div className="settings-content">
             {activeTab === "general" && (
-              <SettingsSection icon={<SlidersHorizontal size={18} />} title="Általános">
+              <SettingsSection icon={<SlidersHorizontal size={18} />} title={t("settings.tabs.general.title")}>
                 <label className="settings-control settings-control-wide">
-                  <span className="settings-control-label"><Sparkles size={16} /> Üdvözlő szöveg</span>
+                  <span className="settings-control-label"><Languages size={16} /> {t("settings.language")}</span>
+                  <select className="field" value={settings.locale} onChange={(e) => updateSettings({ locale: e.target.value as Locale })}>
+                    {availableLocales.map((locale) => (
+                      <option key={locale.code} value={locale.code}>{locale.nativeName} - {locale.name}</option>
+                    ))}
+                  </select>
+                  <span className="text-xs text-slate-300/62">{t("settings.languageDescription")}</span>
+                </label>
+                <label className="settings-control settings-control-wide">
+                  <span className="settings-control-label"><Sparkles size={16} /> {t("settings.greeting")}</span>
                   <input className="field" value={settings.greeting} onChange={(e) => updateSettings({ greeting: e.target.value })} />
                 </label>
                 <label className="settings-control">
-                  <span className="settings-control-label"><Search size={16} /> Kereső</span>
+                  <span className="settings-control-label"><Search size={16} /> {t("settings.searchProvider")}</span>
                   <select className="field" value={settings.searchProvider} onChange={(e) => updateSettings({ searchProvider: e.target.value as SearchProvider })}>
                     <option value="google">Google</option>
                     <option value="duckduckgo">DuckDuckGo</option>
@@ -230,396 +265,152 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
                   </select>
                 </label>
                 <label className="settings-control">
-                  <span className="settings-control-label"><Clock3 size={16} /> Időformátum</span>
+                  <span className="settings-control-label"><Clock3 size={16} /> {t("settings.timeFormat")}</span>
                   <select className="field" value={settings.timeFormat} onChange={(e) => updateSettings({ timeFormat: e.target.value as "12" | "24" })}>
-                    <option value="24">24 órás</option>
-                    <option value="12">12 órás</option>
+                    <option value="24">{t("settings.hour24")}</option>
+                    <option value="12">{t("settings.hour12")}</option>
                   </select>
                 </label>
               </SettingsSection>
             )}
 
             {activeTab === "appearance" && (
-              <SettingsSection icon={<Brush size={18} />} title="Megjelenés">
+              <SettingsSection icon={<Brush size={18} />} title={t("settings.tabs.appearance.title")}>
                 <label className="settings-control">
-                  <span className="settings-control-label"><Image size={16} /> Háttér</span>
+                  <span className="settings-control-label"><Image size={16} /> {t("settings.background")}</span>
                   <select className="field" value={settings.background} onChange={(e) => updateSettings({ background: e.target.value as "image" | "gradient" | "custom" })}>
-                    <option value="image">Alap kép</option>
-                    <option value="custom">Saját kép</option>
-                    <option value="gradient">Gradient</option>
+                    <option value="image">{t("settings.defaultImage")}</option>
+                    <option value="custom">{t("settings.customImage")}</option>
+                    <option value="gradient">{t("settings.gradient")}</option>
                   </select>
                 </label>
                 <label className="settings-control">
-                  <span className="settings-control-label"><Image size={16} /> Illesztés</span>
-                  <select
-                    className="field"
-                    value={settings.backgroundFit ?? "cover"}
-                    disabled={settings.background === "gradient"}
-                    onChange={(e) => updateSettings({ backgroundFit: e.target.value as BackgroundFit })}
-                  >
-                    <option value="cover">Kitöltés</option>
-                    <option value="contain">Teljes kép látszódjon</option>
-                    <option value="fill">Nyújtás</option>
-                    <option value="center">Eredeti méret középen</option>
-                    <option value="repeat">Mozaik</option>
+                  <span className="settings-control-label"><Image size={16} /> {t("settings.fit")}</span>
+                  <select className="field" value={settings.backgroundFit ?? "cover"} disabled={settings.background === "gradient"} onChange={(e) => updateSettings({ backgroundFit: e.target.value as BackgroundFit })}>
+                    <option value="cover">{t("settings.cover")}</option>
+                    <option value="contain">{t("settings.contain")}</option>
+                    <option value="fill">{t("settings.fill")}</option>
+                    <option value="center">{t("settings.center")}</option>
+                    <option value="repeat">{t("settings.repeat")}</option>
                   </select>
                 </label>
                 <div className="settings-control settings-control-wide">
-                  <span className="settings-control-label"><ImagePlus size={16} /> Saját háttérkép</span>
-                  <div
-                    className={`background-preview ${settings.backgroundImageUrl ? "has-image" : ""}`}
-                    style={settings.backgroundImageUrl ? { backgroundImage: `url("${settings.backgroundImageUrl}")` } : undefined}
-                  >
-                    {!settings.backgroundImageUrl && <span>Nincs saját kép kiválasztva</span>}
+                  <span className="settings-control-label"><ImagePlus size={16} /> {t("settings.customBackground")}</span>
+                  <div className={`background-preview ${settings.backgroundImageUrl ? "has-image" : ""}`} style={settings.backgroundImageUrl ? { backgroundImage: `url("${settings.backgroundImageUrl}")` } : undefined}>
+                    {!settings.backgroundImageUrl && <span>{t("settings.noCustomImage")}</span>}
                   </div>
                   <div className="flex flex-wrap gap-3">
                     <label className="ghost-button cursor-pointer">
-                      <ImagePlus size={17} /> Tallózás
+                      <ImagePlus size={17} /> {t("profile.browse")}
                       <input className="sr-only" type="file" accept="image/*" onChange={handleBackgroundBrowse} />
                     </label>
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      disabled={!settings.backgroundImageUrl}
-                      onClick={() => updateSettings({ backgroundImageUrl: "", background: "image" })}
-                    >
-                      <Trash2 size={16} /> Törlés
+                    <button className="ghost-button" type="button" disabled={!settings.backgroundImageUrl} onClick={() => updateSettings({ backgroundImageUrl: "", background: "image" })}>
+                      <Trash2 size={16} /> {t("common.delete")}
                     </button>
                   </div>
-                  <span className="text-xs text-slate-300/62">Profilhoz mentett beállítás.</span>
+                  <span className="text-xs text-slate-300/62">{t("settings.profileSavedSetting")}</span>
                 </div>
-                <Slider
-                  label="Elsötétítés"
-                  value={settings.backgroundDim ?? 0}
-                  min={0}
-                  max={0.75}
-                  step={0.01}
-                  previewId="backgroundDim"
-                  activePreviewId={activePreviewSlider}
-                  onPreviewStart={setActivePreviewSlider}
-                  onChange={(backgroundDim) => updateSettings({ backgroundDim })}
-                />
-                <Slider
-                  label="Blur"
-                  value={settings.blur}
-                  min={6}
-                  max={30}
-                  previewId="blur"
-                  activePreviewId={activePreviewSlider}
-                  onPreviewStart={setActivePreviewSlider}
-                  onChange={(blur) => updateSettings({ blur })}
-                />
-                <Slider
-                  label="Glass átlátszóság"
-                  value={settings.glassOpacity}
-                  min={0.06}
-                  max={0.26}
-                  step={0.01}
-                  previewId="glassOpacity"
-                  activePreviewId={activePreviewSlider}
-                  onPreviewStart={setActivePreviewSlider}
-                  onChange={(glassOpacity) => updateSettings({ glassOpacity })}
-                />
-                <Slider
-                  label="Ikonméret"
-                  value={settings.iconSize}
-                  min={42}
-                  max={74}
-                  previewId="iconSize"
-                  activePreviewId={activePreviewSlider}
-                  onPreviewStart={setActivePreviewSlider}
-                  onChange={(iconSize) => updateSettings({ iconSize })}
-                />
+                <Slider label={t("settings.dim")} value={settings.backgroundDim ?? 0} min={0} max={0.75} step={0.01} previewId="backgroundDim" activePreviewId={activePreviewSlider} onPreviewStart={setActivePreviewSlider} onChange={(backgroundDim) => updateSettings({ backgroundDim })} />
+                <Slider label={t("settings.blur")} value={settings.blur} min={6} max={30} previewId="blur" activePreviewId={activePreviewSlider} onPreviewStart={setActivePreviewSlider} onChange={(blur) => updateSettings({ blur })} />
+                <Slider label={t("settings.glassOpacity")} value={settings.glassOpacity} min={0.06} max={0.26} step={0.01} previewId="glassOpacity" activePreviewId={activePreviewSlider} onPreviewStart={setActivePreviewSlider} onChange={(glassOpacity) => updateSettings({ glassOpacity })} />
+                <Slider label={t("settings.iconSize")} value={settings.iconSize} min={42} max={74} previewId="iconSize" activePreviewId={activePreviewSlider} onPreviewStart={setActivePreviewSlider} onChange={(iconSize) => updateSettings({ iconSize })} />
               </SettingsSection>
             )}
 
             {activeTab === "layout" && (
-              <SettingsSection icon={<LayoutDashboard size={18} />} title="Elrendezés">
+              <SettingsSection icon={<LayoutDashboard size={18} />} title={t("settings.tabs.layout.title")}>
                 <label className="settings-control">
-                  <span className="settings-control-label"><Grid3X3 size={16} /> Nézet</span>
+                  <span className="settings-control-label"><Grid3X3 size={16} /> {t("settings.view")}</span>
                   <select className="field" value={layout.mode} onChange={(e) => setLayoutMode(e.target.value as LayoutMode)}>
-                    <option value="grid">Rácsos, automatikus</option>
-                    <option value="free">Szabad vászon</option>
+                    <option value="grid">{t("settings.autoGrid")}</option>
+                    <option value="free">{t("settings.freeCanvas")}</option>
                   </select>
                 </label>
-                <Slider label="Rács oszlopok" value={settings.columns} min={3} max={7} step={1} onChange={(columns) => updateSettings({ columns })} />
+                <Slider label={t("settings.gridColumns")} value={settings.columns} min={3} max={7} step={1} onChange={(columns) => updateSettings({ columns })} />
                 <div className="settings-control">
-                  <span className="settings-control-label"><RotateCcw size={16} /> Szabad vászon</span>
-                  <button className="ghost-button w-full" type="button" onClick={resetFreeLayout}>
-                    Alapértelmezett visszaállítása
-                  </button>
+                  <span className="settings-control-label"><RotateCcw size={16} /> {t("settings.freeCanvasReset")}</span>
+                  <button className="ghost-button w-full" type="button" onClick={resetFreeLayout}>{t("settings.resetDefault")}</button>
                 </div>
               </SettingsSection>
             )}
 
             {activeTab === "weather" && (
-              <SettingsSection icon={<CloudSun size={18} />} title="Időjárás">
+              <SettingsSection icon={<CloudSun size={18} />} title={t("settings.tabs.weather.title")}>
                 <label className="settings-control settings-control-wide">
-                  <span className="settings-control-label"><CloudSun size={16} /> Helyszín</span>
+                  <span className="settings-control-label"><CloudSun size={16} /> {t("settings.location")}</span>
                   <input className="field" value={settings.weatherLocation} onChange={(e) => updateSettings({ weatherLocation: e.target.value })} placeholder="Budapest" />
-                  <span className="text-xs text-slate-300/62">Profilhoz mentett beállítás.</span>
+                  <span className="text-xs text-slate-300/62">{t("settings.profileSavedSetting")}</span>
                 </label>
                 <div className="settings-control settings-control-wide">
-                  <span className="settings-control-label"><KeyRound size={16} /> WeatherAPI kulcs</span>
+                  <span className="settings-control-label"><KeyRound size={16} /> {t("settings.weatherKey")}</span>
                   <div className={`settings-status-badge ${weatherKeyStatus?.configured ? "is-success" : ""}`}>
                     {weatherKeyStatus?.configured ? <CheckCircle2 size={15} /> : <KeyRound size={15} />}
-                    <span>
-                      {weatherKeyStatus?.configured
-                        ? weatherKeyStatus.source === "environment"
-                          ? "Aktív env kulcs"
-                          : "Aktív kulcs"
-                        : "Nincs beállítva"}
-                    </span>
+                    <span>{weatherKeyStatus?.configured ? weatherKeyStatus.source === "environment" ? t("settings.activeEnvKey") : t("settings.activeKey") : t("settings.notConfigured")}</span>
                   </div>
                   <div className="grid gap-3 sm:grid-cols-[1fr_auto]">
-                    <input
-                      className="field"
-                      type="password"
-                      value={weatherKey}
-                      disabled={weatherKeyStatus?.source === "environment"}
-                      onChange={(e) => setWeatherKey(e.target.value)}
-                      placeholder={weatherKeyStatus?.configured ? "Új kulcs vagy üresen törlés" : "WeatherAPI.com API key"}
-                    />
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      disabled={weatherKeyStatus?.source === "environment"}
-                      onClick={handleWeatherKeySave}
-                    >
-                      Mentés
-                    </button>
+                    <input className="field" type="password" value={weatherKey} disabled={weatherKeyStatus?.source === "environment"} onChange={(e) => setWeatherKey(e.target.value)} placeholder={weatherKeyStatus?.configured ? t("settings.newKeyOrDelete") : "WeatherAPI.com API key"} />
+                    <button className="ghost-button" type="button" disabled={weatherKeyStatus?.source === "environment"} onClick={handleWeatherKeySave}>{t("common.save")}</button>
                   </div>
-                  <span className="text-xs text-slate-300/62">
-                    {weatherKeyStatus?.source === "environment"
-                      ? "Globális kulcs környezeti változóból, itt nem módosítható."
-                      : `${weatherKeyMessage} Ez globális, minden profil ezt használja.`}
-                  </span>
+                  <span className="text-xs text-slate-300/62">{weatherKeyStatus?.source === "environment" ? t("settings.envKeyReadonly") : t("settings.globalWeatherKey", { message: weatherKeyMessage })}</span>
                 </div>
               </SettingsSection>
             )}
 
             {activeTab === "calendar" && (
-              <SettingsSection icon={<CalendarDays size={18} />} title="Naptár">
+              <SettingsSection icon={<CalendarDays size={18} />} title={t("settings.tabs.calendar.title")}>
                 <label className="settings-toggle settings-control-wide">
-                  <span className="inline-flex items-center gap-2"><CalendarDays size={16} /> Naptár widget</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.widgets.calendar}
-                    onChange={(e) => updateSettings({ widgets: { ...settings.widgets, calendar: e.target.checked } })}
-                  />
+                  <span className="inline-flex items-center gap-2"><CalendarDays size={16} /> {t("settings.calendarWidget")}</span>
+                  <input type="checkbox" checked={settings.widgets.calendar} onChange={(e) => updateSettings({ widgets: { ...settings.widgets, calendar: e.target.checked } })} />
                 </label>
                 <label className="settings-toggle settings-control-wide">
-                  <span>
-                    Profil saját naptárforrása
-                    <small className="mt-1 block text-xs text-slate-300/55">
-                      Kikapcsolva közös családi/globális naptárat használ.
-                    </small>
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={settings.calendar.sourceScope === "profile"}
-                    onChange={(e) => updateSettings({
-                      calendar: {
-                        ...settings.calendar,
-                        sourceScope: e.target.checked ? "profile" : "global",
-                      },
-                    })}
-                  />
+                  <span>{t("settings.profileCalendarSource")}<small className="mt-1 block text-xs text-slate-300/55">{t("settings.globalCalendarHint")}</small></span>
+                  <input type="checkbox" checked={settings.calendar.sourceScope === "profile"} onChange={(e) => updateSettings({ calendar: { ...settings.calendar, sourceScope: e.target.checked ? "profile" : "global" } })} />
                 </label>
-                <Slider
-                  label="Előretekintés napokban"
-                  value={settings.calendar.daysAhead}
-                  min={1}
-                  max={90}
-                  step={1}
-                  onChange={(daysAhead) => updateSettings({ calendar: { ...settings.calendar, daysAhead } })}
-                />
-                <Slider
-                  label="Maximum esemény"
-                  value={settings.calendar.maxEvents}
-                  min={1}
-                  max={20}
-                  step={1}
-                  onChange={(maxEvents) => updateSettings({ calendar: { ...settings.calendar, maxEvents } })}
-                />
-                <label className="settings-toggle">
-                  <span>Helyszín mutatása</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.calendar.showLocation}
-                    onChange={(e) => updateSettings({ calendar: { ...settings.calendar, showLocation: e.target.checked } })}
-                  />
-                </label>
-                <label className="settings-toggle">
-                  <span>Forrás neve</span>
-                  <input
-                    type="checkbox"
-                    checked={settings.calendar.showSource}
-                    onChange={(e) => updateSettings({ calendar: { ...settings.calendar, showSource: e.target.checked } })}
-                  />
-                </label>
+                <Slider label={t("settings.daysAhead")} value={settings.calendar.daysAhead} min={1} max={90} step={1} onChange={(daysAhead) => updateSettings({ calendar: { ...settings.calendar, daysAhead } })} />
+                <Slider label={t("settings.maxEvents")} value={settings.calendar.maxEvents} min={1} max={20} step={1} onChange={(maxEvents) => updateSettings({ calendar: { ...settings.calendar, maxEvents } })} />
+                <label className="settings-toggle"><span>{t("settings.showLocation")}</span><input type="checkbox" checked={settings.calendar.showLocation} onChange={(e) => updateSettings({ calendar: { ...settings.calendar, showLocation: e.target.checked } })} /></label>
+                <label className="settings-toggle"><span>{t("settings.showSource")}</span><input type="checkbox" checked={settings.calendar.showSource} onChange={(e) => updateSettings({ calendar: { ...settings.calendar, showSource: e.target.checked } })} /></label>
                 <div className="settings-control settings-control-wide">
-                  <span className="settings-control-label"><KeyRound size={16} /> Naptárforrás</span>
+                  <span className="settings-control-label"><KeyRound size={16} /> {t("settings.calendarSource")}</span>
                   <div className={`settings-status-badge ${calendarSourceStatus?.configured ? "is-success" : ""}`}>
                     {calendarSourceStatus?.configured ? <CheckCircle2 size={15} /> : <CalendarDays size={15} />}
-                    <span>
-                      {calendarSourceStatus?.configured
-                        ? calendarSourceStatus.type === "caldav"
-                          ? "CalDAV aktív"
-                          : "iCal aktív"
-                        : "Nincs beállítva"}
-                    </span>
+                    <span>{calendarSourceStatus?.configured ? calendarSourceStatus.type === "caldav" ? t("settings.caldavActive") : t("settings.icalActive") : t("settings.notConfigured")}</span>
                   </div>
-                  <span className="text-xs text-slate-300/62">
-                    {settings.calendar.sourceScope === "profile"
-                      ? "Ez a naptárforrás csak az aktív profilhoz tartozik."
-                      : "Ez a naptárforrás globális, minden globális módú profil ezt használja."}
-                  </span>
+                  <span className="text-xs text-slate-300/62">{settings.calendar.sourceScope === "profile" ? t("settings.profileCalendarHint") : t("settings.globalCalendarSourceHint")}</span>
                   <div className="settings-calendar-form">
-                    <label className="settings-mini-field">
-                      <span>Típus</span>
-                      <select
-                        className="field"
-                        value={calendarSource.type}
-                        onChange={(e) => setCalendarSource({ ...calendarSource, type: e.target.value as CalendarSourceType })}
-                      >
-                        <option value="ical">iCal feed</option>
-                        <option value="caldav">CalDAV</option>
-                      </select>
-                    </label>
-                    <label className="settings-mini-field">
-                      <span>Név</span>
-                      <input
-                        className="field"
-                        value={calendarSource.name}
-                        onChange={(e) => setCalendarSource({ ...calendarSource, name: e.target.value })}
-                        placeholder="Személyes naptár"
-                      />
-                    </label>
-                    <label className="settings-mini-field settings-control-wide">
-                      <span>{calendarSource.type === "caldav" ? "CalDAV naptár URL" : "iCal URL"}</span>
-                      <input
-                        className="field"
-                        value={calendarSource.url}
-                        onChange={(e) => setCalendarSource({ ...calendarSource, url: e.target.value })}
-                        placeholder={calendarSource.type === "caldav" ? "https://dav.example.hu/cal.php/calendars/user/default/" : "https://calendar.example.hu/private.ics"}
-                      />
-                    </label>
-                    {calendarSource.type === "caldav" && (
-                      <>
-                        <label className="settings-mini-field">
-                          <span>Felhasználó</span>
-                          <input
-                            className="field"
-                            value={calendarSource.username}
-                            onChange={(e) => setCalendarSource({ ...calendarSource, username: e.target.value })}
-                            placeholder="felhasznalonev"
-                          />
-                        </label>
-                        <label className="settings-mini-field">
-                          <span>Jelszó / app password</span>
-                          <input
-                            className="field"
-                            type="password"
-                            value={calendarSource.password}
-                            onChange={(e) => setCalendarSource({ ...calendarSource, password: e.target.value })}
-                            placeholder={calendarSourceStatus?.hasPassword ? "Mentett jelszó cseréje" : "CalDAV jelszó"}
-                          />
-                        </label>
-                      </>
-                    )}
+                    <label className="settings-mini-field"><span>{t("settings.type")}</span><select className="field" value={calendarSource.type} onChange={(e) => setCalendarSource({ ...calendarSource, type: e.target.value as CalendarSourceType })}><option value="ical">iCal feed</option><option value="caldav">CalDAV</option></select></label>
+                    <label className="settings-mini-field"><span>{t("settings.name")}</span><input className="field" value={calendarSource.name} onChange={(e) => setCalendarSource({ ...calendarSource, name: e.target.value })} placeholder={t("settings.personalCalendar")} /></label>
+                    <label className="settings-mini-field settings-control-wide"><span>{calendarSource.type === "caldav" ? t("settings.caldavUrl") : t("settings.icalUrl")}</span><input className="field" value={calendarSource.url} onChange={(e) => setCalendarSource({ ...calendarSource, url: e.target.value })} placeholder={calendarSource.type === "caldav" ? "https://dav.example.com/cal.php/calendars/user/default/" : "https://calendar.example.com/private.ics"} /></label>
+                    {calendarSource.type === "caldav" && <><label className="settings-mini-field"><span>{t("settings.username")}</span><input className="field" value={calendarSource.username} onChange={(e) => setCalendarSource({ ...calendarSource, username: e.target.value })} placeholder={t("settings.usernamePlaceholder")} /></label><label className="settings-mini-field"><span>{t("settings.password")}</span><input className="field" type="password" value={calendarSource.password} onChange={(e) => setCalendarSource({ ...calendarSource, password: e.target.value })} placeholder={calendarSourceStatus?.hasPassword ? t("settings.savedPasswordReplace") : t("settings.caldavPassword")} /></label></>}
                   </div>
-                  <div className="flex flex-wrap gap-3">
-                    <button className="ghost-button" type="button" onClick={handleCalendarSourceSave}>Mentés</button>
-                    <button
-                      className="danger-button"
-                      type="button"
-                      onClick={async () => {
-                        const result = await saveCalendarSource(
-                          { ...calendarSource, url: "" },
-                          { scope: settings.calendar.sourceScope, profileId: activeProfileId },
-                        );
-                        setCalendarSourceStatus(result);
-                        setCalendarSource({ type: "ical", name: "", url: "", username: "", password: "" });
-                        setCalendarMessage("Naptárforrás törölve.");
-                      }}
-                    >
-                      Törlés
-                    </button>
-                  </div>
+                  <div className="flex flex-wrap gap-3"><button className="ghost-button" type="button" onClick={handleCalendarSourceSave}>{t("common.save")}</button><button className="danger-button" type="button" onClick={handleCalendarSourceDelete}>{t("common.delete")}</button></div>
                   <span className="text-xs text-slate-300/62">{calendarMessage}</span>
                 </div>
               </SettingsSection>
             )}
 
             {activeTab === "widgets" && (
-              <SettingsSection icon={<Grid3X3 size={18} />} title="Widgetek">
+              <SettingsSection icon={<Grid3X3 size={18} />} title={t("settings.tabs.widgets.title")}>
                 <div className="settings-widget-list">
                   {(["calendar", "todos", "notes"] as const).map((key) => (
-                    <label key={key} className="settings-toggle">
-                      <span>{key === "calendar" ? "Naptár" : key === "todos" ? "Teendők" : "Jegyzet"}</span>
-                      <input
-                        type="checkbox"
-                        checked={settings.widgets[key]}
-                        onChange={(e) => updateSettings({ widgets: { ...settings.widgets, [key]: e.target.checked } })}
-                      />
-                    </label>
+                    <label key={key} className="settings-toggle"><span>{key === "calendar" ? t("calendar.title") : key === "todos" ? t("todos.title") : t("notes.widgetTitle")}</span><input type="checkbox" checked={settings.widgets[key]} onChange={(e) => updateSettings({ widgets: { ...settings.widgets, [key]: e.target.checked } })} /></label>
                   ))}
                 </div>
               </SettingsSection>
             )}
 
             {activeTab === "system" && (
-              <SettingsSection icon={<BadgeInfo size={18} />} title="Rendszer">
+              <SettingsSection icon={<BadgeInfo size={18} />} title={t("settings.tabs.system.title")}>
                 <div className="settings-control settings-control-wide">
-                  <span className="settings-control-label"><BadgeInfo size={16} /> Verzió</span>
+                  <span className="settings-control-label"><BadgeInfo size={16} /> {t("settings.latestVersion")}</span>
                   <div className={`settings-status-badge ${versionInfo?.updateAvailable ? "is-success" : ""}`}>
                     {versionInfo?.updateAvailable ? <CheckCircle2 size={15} /> : <BadgeInfo size={15} />}
-                    <span>
-                      {versionInfo?.updateAvailable
-                        ? `Új verzió elérhető: ${versionInfo.latestVersion}`
-                        : "Naprakész vagy nincs ellenőrizhető release"}
-                    </span>
+                    <span>{versionInfo?.updateAvailable ? t("settings.latestAvailable", { version: versionInfo.latestVersion ?? "" }) : t("settings.upToDate")}</span>
                   </div>
-                  <div className="version-grid">
-                    <span>Telepített verzió</span>
-                    <strong>{versionInfo?.version ?? "..."}</strong>
-                    <span>Legfrissebb verzió</span>
-                    <strong>{versionInfo?.latestVersion ?? "-"}</strong>
-                    <span>Utolsó ellenőrzés</span>
-                    <strong>{versionInfo?.checkedAt ? formatDateTime(versionInfo.checkedAt) : "-"}</strong>
-                  </div>
-                  {versionInfo?.updateAvailable && (
-                    <div className="version-update-box">
-                      <span>Docker frissítés</span>
-                      <code>docker compose pull && docker compose up -d</code>
-                    </div>
-                  )}
-                  <div className="flex flex-wrap gap-3">
-                    <button
-                      className="ghost-button"
-                      type="button"
-                      onClick={async () => {
-                        try {
-                          const info = await fetchVersionInfo();
-                          setVersionInfo(info);
-                          setVersionMessage(info.error ? "A frissítéskeresés most nem elérhető." : "Verzió ellenőrizve.");
-                        } catch {
-                          setVersionMessage("A verzióinformáció nem olvasható.");
-                        }
-                      }}
-                    >
-                      Ellenőrzés
-                    </button>
-                    {versionInfo?.latestUrl && (
-                      <a className="ghost-button" href={versionInfo.latestUrl} target="_blank" rel="noreferrer">
-                        <ExternalLink size={16} /> Release
-                      </a>
-                    )}
-                  </div>
-                  <span className="text-xs text-slate-300/62">
-                    {versionMessage || "A verzióellenőrzés a GitHub release/tag alapján történik. Kikapcsolható: AUREN_UPDATE_CHECK=false."}
-                  </span>
+                  <div className="version-grid"><span>{t("settings.installedVersion")}</span><strong>{versionInfo?.version ?? "..."}</strong><span>{t("settings.latestVersion")}</span><strong>{versionInfo?.latestVersion ?? "-"}</strong><span>{t("settings.lastCheck")}</span><strong>{versionInfo?.checkedAt ? formatDateTime(versionInfo.checkedAt, dateLocale) : "-"}</strong></div>
+                  {versionInfo?.updateAvailable && <div className="version-update-box"><span>{t("settings.dockerUpdate")}</span><code>docker compose pull && docker compose up -d</code></div>}
+                  <div className="flex flex-wrap gap-3"><button className="ghost-button" type="button" onClick={async () => { try { const info = await fetchVersionInfo(); setVersionInfo(info); setVersionMessage(info.error ? t("settings.weatherUpdateUnavailable") : t("settings.versionChecked")); } catch { setVersionMessage(t("settings.versionUnreadable")); } }}>{t("common.check")}</button>{versionInfo?.latestUrl && <a className="ghost-button" href={versionInfo.latestUrl} target="_blank" rel="noreferrer"><ExternalLink size={16} /> {t("common.release")}</a>}</div>
+                  <span className="text-xs text-slate-300/62">{versionMessage || t("settings.versionDefaultHelp")}</span>
                 </div>
               </SettingsSection>
             )}
@@ -630,8 +421,8 @@ export function SettingsModal({ open, initialTab = "general", onClose }: Props) 
   );
 }
 
-function formatDateTime(value: string) {
-  return new Intl.DateTimeFormat("hu-HU", {
+function formatDateTime(value: string, locale: string) {
+  return new Intl.DateTimeFormat(locale, {
     month: "short",
     day: "numeric",
     hour: "2-digit",
@@ -651,44 +442,14 @@ function SettingsSection({ icon, title, children }: { icon: ReactNode; title: st
   );
 }
 
-function Slider({
-  label,
-  value,
-  min,
-  max,
-  step = 1,
-  previewId,
-  activePreviewId,
-  onPreviewStart,
-  onChange,
-}: {
-  label: string;
-  value: number;
-  min: number;
-  max: number;
-  step?: number;
-  previewId?: string;
-  activePreviewId?: string | null;
-  onPreviewStart?: (id: string) => void;
-  onChange: (value: number) => void;
-}) {
+function Slider({ label, value, min, max, step = 1, previewId, activePreviewId, onPreviewStart, onChange }: { label: string; value: number; min: number; max: number; step?: number; previewId?: string; activePreviewId?: string | null; onPreviewStart?: (id: string) => void; onChange: (value: number) => void }) {
   const isPreviewing = Boolean(previewId && activePreviewId === previewId);
   const displayValue = max <= 1 ? `${Math.round(value * 100)}%` : step < 1 ? value.toFixed(2) : value;
 
   return (
     <label className={`settings-control ${isPreviewing ? "is-preview-control" : ""}`}>
       <span className="settings-range-head"><span>{label}</span><span>{displayValue}</span></span>
-      <input
-        className="settings-range"
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={value}
-        onPointerDown={() => previewId && onPreviewStart?.(previewId)}
-        onInput={(e) => onChange(Number(e.currentTarget.value))}
-        onChange={(e) => onChange(Number(e.target.value))}
-      />
+      <input className="settings-range" type="range" min={min} max={max} step={step} value={value} onPointerDown={() => previewId && onPreviewStart?.(previewId)} onInput={(e) => onChange(Number(e.currentTarget.value))} onChange={(e) => onChange(Number(e.target.value))} />
     </label>
   );
 }

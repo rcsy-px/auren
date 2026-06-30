@@ -2,6 +2,7 @@ import { Bookmark, CalendarDays, Grid3X3, Settings, StickyNote } from "lucide-re
 import { useEffect, useState } from "react";
 import { fetchVersionInfo } from "../lib/version";
 import { useDashboardStore } from "../store/dashboardStore";
+import { useI18n } from "../i18n";
 import type { Profile } from "../types/dashboard";
 
 type Props = {
@@ -14,14 +15,15 @@ type Props = {
 export type SidebarTarget = "dashboard" | "shortcuts" | "calendar" | "notes";
 
 const navItems = [
-  { icon: Grid3X3, label: "Dashboard", target: "dashboard" },
-  { icon: Bookmark, label: "Shortcutok", target: "shortcuts" },
-  { icon: CalendarDays, label: "Naptár", target: "calendar" },
-  { icon: StickyNote, label: "Jegyzetek", target: "notes" },
-] satisfies { icon: typeof Grid3X3; label: string; target: SidebarTarget }[];
+  { icon: Grid3X3, labelKey: "sidebar.dashboard", target: "dashboard" },
+  { icon: Bookmark, labelKey: "sidebar.shortcuts", target: "shortcuts" },
+  { icon: CalendarDays, labelKey: "sidebar.calendar", target: "calendar" },
+  { icon: StickyNote, labelKey: "sidebar.notes", target: "notes" },
+] satisfies { icon: typeof Grid3X3; labelKey: string; target: SidebarTarget }[];
 
 export function Sidebar({ activeTarget, onNavigate, onOpenSettings, onOpenProfile }: Props) {
   const [updateAvailable, setUpdateAvailable] = useState(false);
+  const { t } = useI18n();
   const activeProfile = useDashboardStore((state) =>
     state.profiles.find((profile) => profile.id === state.activeProfileId),
   );
@@ -45,9 +47,11 @@ export function Sidebar({ activeTarget, onNavigate, onOpenSettings, onOpenProfil
         <img src="/aurenlogo_withoutName.png" alt="" />
       </button>
       <nav className="sidebar-nav mt-28 flex flex-1 flex-col items-center gap-5">
-        {navItems.map(({ icon: Icon, label, target }) => (
+        {navItems.map(({ icon: Icon, labelKey, target }) => {
+          const label = t(labelKey);
+          return (
           <button
-            key={label}
+            key={target}
             className={`icon-button ${activeTarget === target ? "active" : ""}`}
             title={label}
             type="button"
@@ -55,13 +59,13 @@ export function Sidebar({ activeTarget, onNavigate, onOpenSettings, onOpenProfil
           >
             <Icon size={22} />
           </button>
-        ))}
-        <button className="icon-button" title={updateAvailable ? "Beállítások - új verzió elérhető" : "Beállítások"} type="button" onClick={onOpenSettings}>
+        )})}
+        <button className="icon-button" title={updateAvailable ? t("sidebar.settingsUpdate") : t("common.settings")} type="button" onClick={onOpenSettings}>
           <Settings size={22} />
           {updateAvailable && <span className="update-dot" aria-hidden="true" />}
         </button>
       </nav>
-      <button className="sidebar-avatar mb-8" title={`Aktív profil: ${activeProfile?.name ?? "Alap profil"}`} type="button" onClick={onOpenProfile}>
+      <button className="sidebar-avatar mb-8" title={t("sidebar.activeProfile", { name: activeProfile?.name ?? t("sidebar.defaultProfile") })} type="button" onClick={onOpenProfile}>
         <ProfileAvatar profile={activeProfile} />
       </button>
     </aside>

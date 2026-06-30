@@ -12,6 +12,7 @@ import { SettingsModal, type SettingsTab } from "./components/SettingsModal";
 import { ShortcutGrid } from "./components/ShortcutGrid";
 import { ShortcutLibraryView } from "./components/ShortcutLibraryView";
 import { Sidebar, type SidebarTarget } from "./components/Sidebar";
+import { useI18n } from "./i18n";
 import { startDashboardSync } from "./lib/dashboardSync";
 import { defaultLayout, useDashboardStore } from "./store/dashboardStore";
 
@@ -107,11 +108,12 @@ function getBackgroundStyle(settings: ReturnType<typeof useDashboardStore.getSta
 }
 
 function DashboardHome({ greeting }: { greeting: string }) {
+  const { t } = useI18n();
   return (
     <section className="dashboard-shell">
       <header className="dashboard-hero">
         <h1 className="hero-title">{greeting}</h1>
-        <p className="hero-subtitle">Fókuszálj a fontos dolgokra.</p>
+        <p className="hero-subtitle">{t("app.heroSubtitle")}</p>
       </header>
 
       <SearchBar />
@@ -119,16 +121,17 @@ function DashboardHome({ greeting }: { greeting: string }) {
       <DashboardWidgets />
 
       <p className="dashboard-quote">
-        „A figyelem a legértékesebb valuta.” - James Clear
+        {t("app.quote")}
       </p>
     </section>
   );
 }
 
 function ShortcutsView() {
+  const { t } = useI18n();
   return (
     <section className="focus-shell">
-      <FocusHeader icon={<Grid3X3 size={22} />} title="Shortcutok" subtitle="Gyorsindítók rendezése, megnyitása és szerkesztése." />
+      <FocusHeader icon={<Grid3X3 size={22} />} title={t("shortcuts.title")} subtitle={t("shortcuts.subtitle")} />
       <SearchBar />
       <ShortcutLibraryView />
     </section>
@@ -136,18 +139,20 @@ function ShortcutsView() {
 }
 
 function CalendarView({ onOpenSettings }: { onOpenSettings: () => void }) {
+  const { t } = useI18n();
   return (
     <section className="focus-shell">
-      <FocusHeader icon={<CalendarDays size={22} />} title="Naptár" subtitle="Közelgő események az iCal vagy CalDAV forrásból." action={<button className="ghost-button" type="button" onClick={onOpenSettings}>Naptár beállítások</button>} />
+      <FocusHeader icon={<CalendarDays size={22} />} title={t("calendar.title")} subtitle={t("calendar.subtitle")} action={<button className="ghost-button" type="button" onClick={onOpenSettings}>{t("calendar.settings")}</button>} />
       <CalendarAgendaView onOpenSettings={onOpenSettings} />
     </section>
   );
 }
 
 function NotesView() {
+  const { t } = useI18n();
   return (
     <section className="focus-shell">
-      <FocusHeader icon={<StickyNote size={22} />} title="Jegyzetek" subtitle="Gyors jegyzet és teendők egy nyugodtabb munkafelületen." />
+      <FocusHeader icon={<StickyNote size={22} />} title={t("notes.title")} subtitle={t("notes.subtitle")} />
       <NotesWorkspaceView />
     </section>
   );

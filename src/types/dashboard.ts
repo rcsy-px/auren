@@ -1,4 +1,5 @@
 export type SearchProvider = "google" | "duckduckgo" | "brave" | "bing";
+export type Locale = "hu" | "en" | "de" | "fr";
 
 export type Shortcut = {
   id: string;
@@ -9,6 +10,13 @@ export type Shortcut = {
   color: string;
   category: string;
   openInNewTab: boolean;
+  order: number;
+};
+
+export type ShortcutCategory = {
+  id: string;
+  name: string;
+  color: string;
   order: number;
 };
 
@@ -39,6 +47,7 @@ export type DashboardLayout = {
 };
 
 export type Settings = {
+  locale: Locale;
   background: "image" | "gradient" | "custom";
   backgroundImageUrl?: string;
   backgroundFit: BackgroundFit;
@@ -70,6 +79,7 @@ export type Settings = {
 
 export type DashboardData = {
   shortcuts: Shortcut[];
+  shortcutCategories: ShortcutCategory[];
   todos: Todo[];
   note: string;
   settings: Settings;
@@ -89,3 +99,4 @@ export type DashboardSnapshot = {
   profiles: Profile[];
   activeProfileId: string;
 };
+

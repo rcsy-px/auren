@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Auren New Tab Settings</title>
+    <link rel="stylesheet" href="styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <p class="kicker">Auren New Tab</p>
+        <h1>Settings</h1>
+        <p class="copy">Choose which Auren dashboard should replace the browser new tab page.</p>
+
+        <form class="form" id="options-form">
+          <label for="dashboard-url">Dashboard IP or URL</label>
+          <div class="input-row">
+            <input id="dashboard-url" name="dashboardUrl" type="text" placeholder="192.168.1.50:8080" autocomplete="url" />
+            <button type="submit">Save</button>
+          </div>
+          <p class="hint">HTTP is added automatically if you enter only an IP, hostname, or host:port.</p>
+          <p class="status" id="status" role="status"></p>
+        </form>
+      </section>
+    </main>
+
+    <script src="shared.js"></script>
+    <script src="options.js"></script>
+  </body>
+</html>

@@ -1,9 +1,11 @@
-import { Edit3, ExternalLink, Grid3X3, List, Plus, Search, Trash2 } from "lucide-react";
+import { Edit3, ExternalLink, Grid3X3, List, Plus, Search, Tags, Trash2 } from "lucide-react";
 import type { CSSProperties } from "react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { normalizeShortcutUrl } from "../lib/url";
+import { useI18n } from "../i18n";
 import { useDashboardStore } from "../store/dashboardStore";
 import type { Shortcut } from "../types/dashboard";
+import { ShortcutCategoryManagerModal } from "./ShortcutCategoryManagerModal";
 import { ShortcutEditorModal } from "./ShortcutEditorModal";
 import { ShortcutIcon } from "./ShortcutIcon";
 
@@ -12,32 +14,45 @@ type ViewMode = "grid" | "list";
 
 export function ShortcutLibraryView() {
   const shortcuts = useDashboardStore((state) => state.shortcuts);
+  const shortcutCategories = useDashboardStore((state) => state.shortcutCategories);
   const settings = useDashboardStore((state) => state.settings);
   const updateSettings = useDashboardStore((state) => state.updateSettings);
   const addShortcut = useDashboardStore((state) => state.addShortcut);
   const updateShortcut = useDashboardStore((state) => state.updateShortcut);
   const deleteShortcut = useDashboardStore((state) => state.deleteShortcut);
+  const { t } = useI18n();
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState("Összes");
+  const [category, setCategory] = useState(t("common.all"));
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [formOpen, setFormOpen] = useState(false);
+  const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [editing, setEditing] = useState<Shortcut | null>(null);
 
   const categories = useMemo(() => {
-    const unique = [...new Set(shortcuts.map((shortcut) => shortcut.category || "Egyéb"))].sort((a, b) => a.localeCompare(b, "hu"));
-    return ["Összes", ...unique];
-  }, [shortcuts]);
+    const managed = shortcutCategories.map((item) => item.name);
+    const shortcutOnly = shortcuts
+      .map((shortcut) => shortcut.category || t("common.fallbackCategory"))
+      .filter((name) => !managed.some((item) => item.toLowerCase() === name.toLowerCase()))
+      .sort((a, b) => a.localeCompare(b, "hu"));
+    const unique = [...new Set([...managed, ...shortcutOnly])];
+    return [t("common.all"), ...unique];
+  }, [shortcutCategories, shortcuts, t]);
+  const categoryColors = useMemo(() => new Map(shortcutCategories.map((item) => [item.name, item.color])), [shortcutCategories]);
+
+  useEffect(() => {
+    if (!categories.includes(category)) setCategory(t("common.all"));
+  }, [categories, category, t]);
 
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
     return [...shortcuts]
       .sort((a, b) => a.order - b.order)
-      .filter((shortcut) => category === "Összes" || shortcut.category === category)
+      .filter((shortcut) => category === t("common.all") || shortcut.category === category)
       .filter((shortcut) => {
         if (!search) return true;
         return [shortcut.name, shortcut.url, shortcut.category].some((value) => value.toLowerCase().includes(search));
       });
-  }, [category, query, shortcuts]);
+  }, [category, query, shortcuts, t]);
 
   function openForm(shortcut?: Shortcut) {
     setEditing(shortcut ?? null);
@@ -66,24 +81,28 @@ export function ShortcutLibraryView() {
       <div className="library-toolbar glass">
         <label className="library-search">
           <Search size={18} />
-          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Shortcut keresése" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder={t("shortcuts.searchPlaceholder")} />
         </label>
-        <div className="library-view-toggle" aria-label="Nézet">
-          <button className={viewMode === "grid" ? "is-active" : ""} type="button" onClick={() => setViewMode("grid")} title="Rács">
+        <div className="library-view-toggle" aria-label={t("shortcuts.view")}>
+          <button className={viewMode === "grid" ? "is-active" : ""} type="button" onClick={() => setViewMode("grid")} title={t("common.grid")}>
             <Grid3X3 size={18} />
           </button>
-          <button className={viewMode === "list" ? "is-active" : ""} type="button" onClick={() => setViewMode("list")} title="Lista">
+          <button className={viewMode === "list" ? "is-active" : ""} type="button" onClick={() => setViewMode("list")} title={t("common.list")}>
             <List size={18} />
           </button>
         </div>
         <button className="primary-button" type="button" onClick={() => openForm()}>
-          <Plus size={18} /> Új shortcut
+          <Plus size={18} /> {t("shortcuts.new")}
+        </button>
+        <button className="ghost-button" type="button" onClick={() => setCategoryManagerOpen(true)}>
+          <Tags size={18} /> {t("shortcuts.categories")}
         </button>
       </div>
 
       <div className="category-strip">
         {categories.map((item) => (
           <button key={item} className={category === item ? "is-active" : ""} type="button" onClick={() => setCategory(item)}>
+            {item !== t("common.all") && <span className="category-color-dot" style={{ backgroundColor: categoryColors.get(item) ?? "#60a5fa" }} />}
             {item}
           </button>
         ))}
@@ -91,8 +110,8 @@ export function ShortcutLibraryView() {
 
       <label className="library-dashboard-toggle glass">
         <span>
-          <strong>Kategóriák a dashboardon</strong>
-          <small>Szebb, csoportosított shortcut szekciók a kezdőlapon.</small>
+          <strong>{t("shortcuts.showCategoriesTitle")}</strong>
+          <small>{t("shortcuts.showCategoriesDescription")}</small>
         </span>
         <input
           type="checkbox"
@@ -111,8 +130,8 @@ export function ShortcutLibraryView() {
                 <span className="mt-1 max-w-full truncate text-xs text-slate-300/48">{shortcut.category}</span>
               </button>
               <span className="library-card-actions">
-                <button type="button" title="Szerkesztés" onClick={() => openForm(shortcut)}><Edit3 size={14} /></button>
-                <button type="button" title="Törlés" onClick={() => deleteShortcut(shortcut.id)}><Trash2 size={14} /></button>
+                <button type="button" title={t("common.edit")} onClick={() => openForm(shortcut)}><Edit3 size={14} /></button>
+                <button type="button" title={t("common.delete")} onClick={() => deleteShortcut(shortcut.id)}><Trash2 size={14} /></button>
               </span>
             </div>
           ))}
@@ -127,14 +146,14 @@ export function ShortcutLibraryView() {
                 <div className="truncate text-xs text-slate-300/56">{shortcut.url}</div>
               </div>
               <span className="library-category-pill">{shortcut.category}</span>
-              <button className="icon-button" type="button" title="Megnyitás" onClick={() => openShortcut(shortcut)}><ExternalLink size={17} /></button>
-              <button className="icon-button" type="button" title="Szerkesztés" onClick={() => openForm(shortcut)}><Edit3 size={17} /></button>
+              <button className="icon-button" type="button" title={t("common.open")} onClick={() => openShortcut(shortcut)}><ExternalLink size={17} /></button>
+              <button className="icon-button" type="button" title={t("common.edit")} onClick={() => openForm(shortcut)}><Edit3 size={17} /></button>
             </div>
           ))}
         </div>
       )}
 
-      {filtered.length === 0 && <p className="empty-state">Nincs találat erre a szűrésre.</p>}
+      {filtered.length === 0 && <p className="empty-state">{t("shortcuts.noResults")}</p>}
 
       {formOpen && (
         <ShortcutEditorModal
@@ -147,6 +166,9 @@ export function ShortcutLibraryView() {
           }}
         />
       )}
+
+      {categoryManagerOpen && <ShortcutCategoryManagerModal onClose={() => setCategoryManagerOpen(false)} />}
     </>
   );
 }
+

@@ -118,6 +118,20 @@ For development or testing without a published image:
 docker compose -f docker-compose.local.yml up --build
 ```
 
+## Chromium New Tab Extension
+
+A minimal Manifest V3 extension scaffold lives in `extension/chromium`. It replaces the Chromium new tab page with an extension page and renders the configured Auren dashboard inside a full-screen iframe.
+
+For local testing:
+
+1. Open `chrome://extensions` in Chrome, Vivaldi, Edge, or another Chromium-based browser.
+2. Enable Developer mode.
+3. Choose "Load unpacked".
+4. Select `extension/chromium`.
+5. Open a new tab or the extension options and enter the dashboard IP/URL.
+
+The extension stores only the dashboard URL in `chrome.storage.sync`. If the protocol is omitted, it saves the address as `http://...`. Vivaldi uses its own Start Page handling, so the scaffold also includes a background fallback that opens the extension new tab wrapper for internal new tab URLs.`r`n`r`nCurrent wrapper limitations: iframe rendering must be allowed by the dashboard/proxy, there is no offline snapshot yet, and Vivaldi support is a tab guard rather than a real browser setting override.
+
 ## Configuration
 
 Copy the example environment file if you are running from this repository:

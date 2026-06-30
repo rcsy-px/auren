@@ -1,5 +1,6 @@
 import { CloudSun, Droplets, Wind } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useI18n } from "../i18n";
 import { fetchWeather, type WeatherPayload } from "../lib/weather";
 import { useDashboardStore } from "../store/dashboardStore";
 
@@ -8,6 +9,7 @@ export function ClockWeather({ inline = false }: { inline?: boolean }) {
   const [weather, setWeather] = useState<WeatherPayload | null>(null);
   const [weatherError, setWeatherError] = useState(false);
   const settings = useDashboardStore((state) => state.settings);
+  const { t, dateLocale } = useI18n();
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000);
@@ -39,20 +41,16 @@ export function ClockWeather({ inline = false }: { inline?: boolean }) {
   }, [settings.weatherLocation]);
 
   const temperature = weather?.current.temperature;
-  const weatherLabel = weather?.current.condition ?? "Időjárás";
+  const weatherLabel = weather?.current.condition ?? t("weather.fallbackLabel");
   const place = weather?.place.name ?? settings.weatherLocation;
 
   return (
     <div className={`clock-weather ${inline ? "clock-weather-inline" : ""}`}>
       <div className="clock-time">
-        {now.toLocaleTimeString("hu-HU", {
-          hour: "2-digit",
-          minute: "2-digit",
-          hour12: settings.timeFormat === "12",
-        })}
+        {now.toLocaleTimeString(dateLocale, { hour: "2-digit", minute: "2-digit", hour12: settings.timeFormat === "12" })}
       </div>
       <div className="mt-2 text-sm text-slate-100/80 md:text-base">
-        {now.toLocaleDateString("hu-HU", { month: "long", day: "numeric", weekday: "long" })}
+        {now.toLocaleDateString(dateLocale, { month: "long", day: "numeric", weekday: "long" })}
       </div>
       {weather && !weatherError && (
         <div className="weather-chip mt-4" title={`${weather.provider} - ${place}`}>
@@ -63,12 +61,8 @@ export function ClockWeather({ inline = false }: { inline?: boolean }) {
           <div className="weather-detail mt-1 text-xs text-slate-200/62">{weatherLabel} · {place}</div>
           <div className="weather-detail mt-2 flex items-center justify-end gap-3 text-xs text-slate-200/60">
             <span>{Math.round(weather.daily.temperatureMin ?? temperature ?? 0)}° / {Math.round(weather.daily.temperatureMax ?? temperature ?? 0)}°</span>
-            {weather.daily.precipitationProbability !== undefined && (
-              <span className="inline-flex items-center gap-1"><Droplets size={12} />{weather.daily.precipitationProbability}%</span>
-            )}
-            {weather.current.windSpeed !== undefined && (
-              <span className="inline-flex items-center gap-1"><Wind size={12} />{Math.round(weather.current.windSpeed)} km/h</span>
-            )}
+            {weather.daily.precipitationProbability !== undefined && <span className="inline-flex items-center gap-1"><Droplets size={12} />{weather.daily.precipitationProbability}%</span>}
+            {weather.current.windSpeed !== undefined && <span className="inline-flex items-center gap-1"><Wind size={12} />{Math.round(weather.current.windSpeed)} km/h</span>}
           </div>
         </div>
       )}
