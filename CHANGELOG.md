@@ -1,5 +1,16 @@
 # Changelog
 
+## 0.1.4 - 2026-07-01
+
+### Added
+
+- Added multi-note support with note creation, switching, renaming, deletion, search, and Markdown preview empty states.
+- Added a Shortcut Library overview panel with shortcut/category/open-mode stats.
+
+### Changed
+
+- Improved the Shortcut Library with result counts, category count badges, reset filters, richer empty states, and clearer grid/list actions.
+- Updated the dashboard notes widget to edit the active note.
 ## 0.1.3 - 2026-06-28
 
 ### Changed

@@ -27,6 +27,15 @@ export type Todo = {
   order: number;
 };
 
+export type Note = {
+  id: string;
+  title: string;
+  content: string;
+  createdAt: string;
+  updatedAt: string;
+  order: number;
+};
+
 export type WidgetKey = "calendar" | "todos" | "notes";
 
 export type LayoutMode = "grid" | "free";
@@ -81,6 +90,8 @@ export type DashboardData = {
   shortcuts: Shortcut[];
   shortcutCategories: ShortcutCategory[];
   todos: Todo[];
+  notes: Note[];
+  activeNoteId: string;
   note: string;
   settings: Settings;
   layout: DashboardLayout;
@@ -99,4 +110,3 @@ export type DashboardSnapshot = {
   profiles: Profile[];
   activeProfileId: string;
 };
-

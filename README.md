@@ -15,7 +15,7 @@ Auren is a quiet, glassy, profile-aware dashboard for shortcuts, notes, todos, c
 - drag-and-drop ordering for shortcuts, todos, and widgets
 - grid layout and free-canvas layout
 - quick search with URL detection and configurable provider
-- notes workspace with simple Markdown preview
+- multi-note workspace with simple Markdown preview
 - todo widget and dashboard widgets
 - WeatherAPI.com integration with global API key and per-profile location
 - iCal and CalDAV calendar integration

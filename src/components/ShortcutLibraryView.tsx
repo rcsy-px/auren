@@ -1,8 +1,8 @@
-import { Edit3, ExternalLink, Grid3X3, List, Plus, Search, Tags, Trash2 } from "lucide-react";
+import { Edit3, ExternalLink, Grid3X3, List, Plus, RotateCcw, Search, Tags, Trash2 } from "lucide-react";
 import type { CSSProperties } from "react";
 import { useEffect, useMemo, useState } from "react";
-import { normalizeShortcutUrl } from "../lib/url";
 import { useI18n } from "../i18n";
+import { normalizeShortcutUrl } from "../lib/url";
 import { useDashboardStore } from "../store/dashboardStore";
 import type { Shortcut } from "../types/dashboard";
 import { ShortcutCategoryManagerModal } from "./ShortcutCategoryManagerModal";
@@ -21,12 +21,24 @@ export function ShortcutLibraryView() {
   const updateShortcut = useDashboardStore((state) => state.updateShortcut);
   const deleteShortcut = useDashboardStore((state) => state.deleteShortcut);
   const { t } = useI18n();
+  const allCategory = t("common.all");
   const [query, setQuery] = useState("");
-  const [category, setCategory] = useState(t("common.all"));
+  const [category, setCategory] = useState(allCategory);
   const [viewMode, setViewMode] = useState<ViewMode>("grid");
   const [formOpen, setFormOpen] = useState(false);
   const [categoryManagerOpen, setCategoryManagerOpen] = useState(false);
   const [editing, setEditing] = useState<Shortcut | null>(null);
+
+  const sortedShortcuts = useMemo(() => [...shortcuts].sort((a, b) => a.order - b.order), [shortcuts]);
+  const categoryCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const shortcut of shortcuts) {
+      const name = shortcut.category || t("common.fallbackCategory");
+      counts.set(name, (counts.get(name) ?? 0) + 1);
+    }
+    counts.set(allCategory, shortcuts.length);
+    return counts;
+  }, [allCategory, shortcuts, t]);
 
   const categories = useMemo(() => {
     const managed = shortcutCategories.map((item) => item.name);
@@ -35,24 +47,33 @@ export function ShortcutLibraryView() {
       .filter((name) => !managed.some((item) => item.toLowerCase() === name.toLowerCase()))
       .sort((a, b) => a.localeCompare(b, "hu"));
     const unique = [...new Set([...managed, ...shortcutOnly])];
-    return [t("common.all"), ...unique];
-  }, [shortcutCategories, shortcuts, t]);
+    return [allCategory, ...unique];
+  }, [allCategory, shortcutCategories, shortcuts, t]);
   const categoryColors = useMemo(() => new Map(shortcutCategories.map((item) => [item.name, item.color])), [shortcutCategories]);
 
   useEffect(() => {
-    if (!categories.includes(category)) setCategory(t("common.all"));
-  }, [categories, category, t]);
+    if (!categories.includes(category)) setCategory(allCategory);
+  }, [allCategory, categories, category]);
 
   const filtered = useMemo(() => {
     const search = query.trim().toLowerCase();
-    return [...shortcuts]
-      .sort((a, b) => a.order - b.order)
-      .filter((shortcut) => category === t("common.all") || shortcut.category === category)
+    return sortedShortcuts
+      .filter((shortcut) => category === allCategory || shortcut.category === category)
       .filter((shortcut) => {
         if (!search) return true;
         return [shortcut.name, shortcut.url, shortcut.category].some((value) => value.toLowerCase().includes(search));
       });
-  }, [category, query, shortcuts, t]);
+  }, [allCategory, category, query, sortedShortcuts]);
+
+  const hasFilters = query.trim() !== "" || category !== allCategory;
+  const resultLabel = hasFilters
+    ? t("shortcuts.filteredResults", { count: filtered.length, total: shortcuts.length })
+    : t("shortcuts.totalResults", { count: shortcuts.length });
+
+  function resetFilters() {
+    setQuery("");
+    setCategory(allCategory);
+  }
 
   function openForm(shortcut?: Shortcut) {
     setEditing(shortcut ?? null);
@@ -99,11 +120,17 @@ export function ShortcutLibraryView() {
         </button>
       </div>
 
+      <div className="library-results-row">
+        <span>{resultLabel}</span>
+        {hasFilters && <button type="button" onClick={resetFilters}><RotateCcw size={15} /> {t("shortcuts.resetFilters")}</button>}
+      </div>
+
       <div className="category-strip">
         {categories.map((item) => (
           <button key={item} className={category === item ? "is-active" : ""} type="button" onClick={() => setCategory(item)}>
-            {item !== t("common.all") && <span className="category-color-dot" style={{ backgroundColor: categoryColors.get(item) ?? "#60a5fa" }} />}
-            {item}
+            {item !== allCategory && <span className="category-color-dot" style={{ backgroundColor: categoryColors.get(item) ?? "#60a5fa" }} />}
+            <span>{item}</span>
+            <small>{categoryCounts.get(item) ?? 0}</small>
           </button>
         ))}
       </div>
@@ -120,7 +147,7 @@ export function ShortcutLibraryView() {
         />
       </label>
 
-      {viewMode === "grid" ? (
+      {filtered.length > 0 && viewMode === "grid" && (
         <div className="shortcut-grid library-shortcut-grid" style={{ "--shortcut-columns": settings.columns } as CSSProperties}>
           {filtered.map((shortcut) => (
             <div key={shortcut.id} className="shortcut-card group">
@@ -130,30 +157,43 @@ export function ShortcutLibraryView() {
                 <span className="mt-1 max-w-full truncate text-xs text-slate-300/48">{shortcut.category}</span>
               </button>
               <span className="library-card-actions">
+                <button type="button" title={t("common.open")} onClick={() => openShortcut(shortcut)}><ExternalLink size={14} /></button>
                 <button type="button" title={t("common.edit")} onClick={() => openForm(shortcut)}><Edit3 size={14} /></button>
                 <button type="button" title={t("common.delete")} onClick={() => deleteShortcut(shortcut.id)}><Trash2 size={14} /></button>
               </span>
             </div>
           ))}
         </div>
-      ) : (
+      )}
+
+      {filtered.length > 0 && viewMode === "list" && (
         <div className="library-list">
           {filtered.map((shortcut) => (
             <div key={shortcut.id} className="library-list-row glass">
               <ShortcutIcon shortcut={shortcut} size={42} />
-              <div className="min-w-0 flex-1">
+              <div className="library-list-main">
                 <div className="truncate text-sm font-medium text-white">{shortcut.name}</div>
-                <div className="truncate text-xs text-slate-300/56">{shortcut.url}</div>
+                <div className="truncate text-xs text-slate-300/56">{normalizeShortcutUrl(shortcut.url)}</div>
               </div>
               <span className="library-category-pill">{shortcut.category}</span>
-              <button className="icon-button" type="button" title={t("common.open")} onClick={() => openShortcut(shortcut)}><ExternalLink size={17} /></button>
-              <button className="icon-button" type="button" title={t("common.edit")} onClick={() => openForm(shortcut)}><Edit3 size={17} /></button>
+              <span className="library-open-mode">{shortcut.openInNewTab ? t("shortcuts.openModeNewTab") : t("shortcuts.openModeCurrentTab")}</span>
+              <div className="library-list-actions">
+                <button className="icon-button" type="button" title={t("common.open")} onClick={() => openShortcut(shortcut)}><ExternalLink size={17} /></button>
+                <button className="icon-button" type="button" title={t("common.edit")} onClick={() => openForm(shortcut)}><Edit3 size={17} /></button>
+                <button className="icon-button danger" type="button" title={t("common.delete")} onClick={() => deleteShortcut(shortcut.id)}><Trash2 size={17} /></button>
+              </div>
             </div>
           ))}
         </div>
       )}
 
-      {filtered.length === 0 && <p className="empty-state">{t("shortcuts.noResults")}</p>}
+      {filtered.length === 0 && (
+        <div className="empty-state library-empty-state">
+          <strong>{shortcuts.length === 0 ? t("shortcuts.noShortcuts") : t("shortcuts.noFilteredResults")}</strong>
+          <span>{hasFilters ? t("shortcuts.noFilteredHint") : t("shortcuts.noShortcutsHint")}</span>
+          {hasFilters ? <button className="ghost-button" type="button" onClick={resetFilters}><RotateCcw size={16} /> {t("shortcuts.resetFilters")}</button> : <button className="primary-button" type="button" onClick={() => openForm()}><Plus size={16} /> {t("shortcuts.new")}</button>}
+        </div>
+      )}
 
       {formOpen && (
         <ShortcutEditorModal
@@ -171,4 +211,3 @@ export function ShortcutLibraryView() {
     </>
   );
 }
-

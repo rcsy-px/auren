@@ -214,6 +214,7 @@ body {
 
 .dashboard-hero,
 .search-shell,
+.dashboard-overview,
 .shortcut-grid,
 .widget-grid,
 .dashboard-quote,
@@ -233,13 +234,17 @@ body {
   animation-delay: 210ms;
 }
 
+.dashboard-overview {
+  animation-delay: 250ms;
+}
+
 .shortcut-grid {
-  animation-delay: 290ms;
+  animation-delay: 330ms;
 }
 
 .widget-grid,
 .dashboard-quote {
-  animation-delay: 360ms;
+  animation-delay: 400ms;
 }
 
 .icon-button {
@@ -273,6 +278,85 @@ body {
   border: 2px solid rgba(8, 13, 22, 0.92);
   background: #22c55e;
   box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.16), 0 0 18px rgba(34, 197, 94, 0.65);
+}
+
+.dashboard-overview {
+  display: grid;
+  width: 100%;
+  max-width: clamp(720px, 56vw, 1180px);
+  gap: 14px;
+  margin-top: clamp(16px, 2vh, 28px);
+  border-radius: 18px;
+  padding: 14px;
+  grid-template-columns: minmax(180px, 0.7fr) minmax(0, 1.6fr);
+}
+
+.dashboard-overview-heading {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 11px;
+  padding: 6px 8px;
+}
+
+.dashboard-overview-heading > span,
+.dashboard-overview-icon {
+  display: grid;
+  height: 34px;
+  width: 34px;
+  flex: 0 0 auto;
+  place-items: center;
+  border-radius: 12px;
+  background: rgba(125, 211, 252, 0.12);
+  color: rgba(186, 230, 253, 0.96);
+}
+
+.dashboard-overview-heading strong,
+.dashboard-overview-stat strong {
+  display: block;
+  color: white;
+  font-weight: 720;
+}
+
+.dashboard-overview-heading small,
+.dashboard-overview-stat small {
+  display: block;
+  color: rgba(203, 213, 225, 0.58);
+  font-size: 12px;
+}
+
+.dashboard-overview-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+}
+
+.dashboard-overview-stat {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-radius: 14px;
+  background: rgba(255, 255, 255, 0.045);
+  padding: 10px;
+}
+
+.dashboard-overview-copy {
+  min-width: 0;
+}
+
+.dashboard-overview-stat strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 15px;
+}
+
+.dashboard-overview-stat small {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .shortcut-card {
@@ -687,7 +771,7 @@ body {
 .focus-grid {
   display: grid;
   gap: clamp(16px, 1.5vw, 26px);
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1.2fr) minmax(280px, 0.55fr);
 }
 
 .focus-grid-calendar {
@@ -757,6 +841,33 @@ body {
   color: white;
 }
 
+.library-results-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 12px;
+  color: rgba(203, 213, 225, 0.62);
+  font-size: 13px;
+}
+
+.library-results-row button {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.07);
+  padding: 7px 10px;
+  color: rgba(226, 232, 240, 0.78);
+  transition: background 180ms var(--motion-soft), color 180ms var(--motion-soft);
+}
+
+.library-results-row button:hover {
+  background: rgba(125, 211, 252, 0.14);
+  color: white;
+}
+
 .category-strip {
   display: flex;
   gap: 9px;
@@ -809,6 +920,22 @@ body {
   padding: 8px 12px;
   color: rgba(226, 232, 240, 0.75);
   font-size: 13px;
+}
+
+.category-strip button small {
+  display: grid;
+  min-width: 22px;
+  height: 22px;
+  place-items: center;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.08);
+  color: rgba(226, 232, 240, 0.68);
+  font-size: 11px;
+}
+
+.category-strip button.is-active small {
+  background: rgba(14, 165, 233, 0.24);
+  color: white;
 }
 
 .category-strip button:hover,
@@ -875,14 +1002,33 @@ body {
 }
 
 .library-list-row {
-  display: flex;
+  display: grid;
   min-width: 0;
   align-items: center;
   gap: 12px;
   border-radius: 16px;
   padding: 12px;
+  grid-template-columns: auto minmax(180px, 1fr) auto auto auto;
 }
 
+.library-list-main {
+  min-width: 0;
+}
+
+.library-open-mode {
+  border-radius: 999px;
+  background: rgba(125, 211, 252, 0.1);
+  padding: 6px 10px;
+  color: rgba(186, 230, 253, 0.82);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.library-list-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
 .library-list-row .shortcut-icon-shell {
   margin-bottom: 0;
 }
@@ -905,6 +1051,26 @@ body {
   color: rgba(203, 213, 225, 0.7);
 }
 
+.library-empty-state {
+  display: grid;
+  justify-items: start;
+  gap: 8px;
+}
+
+.library-empty-state strong {
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 15px;
+}
+
+.library-empty-state span {
+  color: rgba(203, 213, 225, 0.62);
+  font-size: 13px;
+}
+
+.library-empty-state .ghost-button,
+.library-empty-state .primary-button {
+  margin-top: 6px;
+}
 .empty-state.is-error {
   border-color: rgba(248, 113, 113, 0.18);
   color: rgba(254, 202, 202, 0.86);
@@ -1005,7 +1171,108 @@ body {
 .notes-workspace {
   display: grid;
   gap: clamp(16px, 1.5vw, 26px);
-  grid-template-columns: minmax(0, 1.35fr) minmax(280px, 0.65fr);
+  grid-template-columns: minmax(220px, 0.42fr) minmax(0, 1.2fr) minmax(280px, 0.55fr);
+}
+
+.notes-list {
+  display: grid;
+  min-height: clamp(420px, 58vh, 720px);
+  border-radius: 20px;
+  padding: 16px;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+.notes-list-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.09);
+  padding-bottom: 14px;
+}
+
+.notes-list-header p {
+  margin-top: 3px;
+  color: rgba(203, 213, 225, 0.62);
+  font-size: 13px;
+}
+
+.notes-search {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 40px;
+  margin-top: 14px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 13px;
+  background: rgba(255, 255, 255, 0.05);
+  padding: 0 11px;
+  color: rgba(203, 213, 225, 0.72);
+}
+
+.notes-search input {
+  min-width: 0;
+  width: 100%;
+  background: transparent;
+  color: rgba(248, 250, 252, 0.92);
+  font-size: 13px;
+  outline: none;
+}
+
+.notes-search input::placeholder {
+  color: rgba(203, 213, 225, 0.48);
+}
+
+.notes-empty-state {
+  border: 1px dashed rgba(255, 255, 255, 0.1);
+  border-radius: 14px;
+  padding: 16px 12px;
+  color: rgba(203, 213, 225, 0.58);
+  font-size: 13px;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.notes-list-items {
+  display: grid;
+  align-content: start;
+  gap: 8px;
+  overflow: auto;
+  padding-top: 14px;
+}
+
+.notes-list-item {
+  display: grid;
+  width: 100%;
+  gap: 4px;
+  border-radius: 14px;
+  padding: 12px;
+  text-align: left;
+  color: rgba(226, 232, 240, 0.78);
+  transition: background 180ms var(--motion-soft), color 180ms var(--motion-soft), transform 180ms var(--motion-soft);
+}
+
+.notes-list-item:hover,
+.notes-list-item.is-active {
+  background: rgba(255, 255, 255, 0.09);
+  color: white;
+}
+
+.notes-list-item:hover {
+  transform: translateY(-1px);
+}
+
+.notes-list-item span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 650;
+}
+
+.notes-list-item small {
+  color: rgba(203, 213, 225, 0.55);
+  font-size: 12px;
 }
 
 .notes-editor {
@@ -1023,6 +1290,41 @@ body {
   gap: 14px;
   border-bottom: 1px solid rgba(255, 255, 255, 0.09);
   padding-bottom: 14px;
+}
+
+.notes-title-block {
+  min-width: 0;
+}
+
+.notes-title-input {
+  width: min(100%, 520px);
+  margin-top: 4px;
+  background: transparent;
+  color: white;
+  font-size: clamp(22px, 3vw, 34px);
+  font-weight: 720;
+  outline: none;
+}
+
+.notes-title-input:focus {
+  color: rgba(224, 242, 254, 0.98);
+}
+
+.notes-toolbar-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.icon-button.danger:hover {
+  background: rgba(248, 113, 113, 0.16);
+  color: #fecaca;
+}
+
+.icon-button:disabled {
+  cursor: not-allowed;
+  opacity: 0.4;
+  transform: none;
 }
 
 .notes-toolbar p {
@@ -1053,6 +1355,14 @@ body {
   line-height: 1.75;
 }
 
+.notes-preview-empty {
+  display: grid;
+  min-height: 220px;
+  place-items: center;
+  color: rgba(203, 213, 225, 0.55);
+  font-size: 14px;
+  text-align: center;
+}
 .notes-preview h1,
 .notes-preview h2,
 .notes-preview h3 {
@@ -2253,7 +2563,16 @@ select.field option:checked {
   }
 
   .library-list-row {
-    flex-wrap: wrap;
+    grid-template-columns: auto minmax(0, 1fr) auto;
+  }
+
+  .library-open-mode {
+    grid-column: 2 / -1;
+    width: fit-content;
+  }
+
+  .library-list-actions {
+    grid-column: 1 / -1;
   }
 
   .library-category-pill {
@@ -2284,6 +2603,14 @@ select.field option:checked {
 
   .search-shell {
     padding: 11px 14px;
+  }
+
+  .dashboard-overview {
+    grid-template-columns: 1fr;
+  }
+
+  .dashboard-overview-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .shortcut-grid {

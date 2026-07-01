@@ -6,6 +6,7 @@ import type {
   DashboardData,
   DashboardLayout,
   DashboardSnapshot,
+  Note,
   FreeItemPosition,
   Profile,
   Settings,
@@ -88,18 +89,58 @@ const ensureCategory = (categories: ShortcutCategory[], name: string): ShortcutC
   ];
 };
 
-const createDefaultData = (): DashboardData => ({
-  shortcuts: defaultShortcuts,
-  shortcutCategories: createShortcutCategories(defaultShortcuts),
-  todos: [
-    { id: "todo-1", text: "Email válaszok", completed: false, order: 0 },
-    { id: "todo-2", text: "Tervezési dokumentum", completed: false, order: 1 },
-    { id: "todo-3", text: "Kutatás készítése", completed: false, order: 2 },
-  ],
-  note: "Ne feledd: a fókusz kulcsa a kevesebb, de jobb döntés.",
-  settings: defaultSettings,
-  layout: defaultLayout,
-});
+const defaultTodos: Todo[] = [
+  { id: "todo-1", text: "Email válaszok", completed: false, order: 0 },
+  { id: "todo-2", text: "Tervezési dokumentum", completed: false, order: 1 },
+  { id: "todo-3", text: "Kutatás készítése", completed: false, order: 2 },
+];
+
+const createNote = (title: string, content = ""): Note => {
+  const now = new Date().toISOString();
+  return {
+    id: uid(),
+    title: title.trim() || "Új jegyzet",
+    content,
+    createdAt: now,
+    updatedAt: now,
+    order: 0,
+  };
+};
+
+const normalizeNotes = (data: Partial<DashboardData>) => {
+  const legacyNote = data.note ?? "";
+  const sourceNotes = Array.isArray(data.notes) && data.notes.length
+    ? data.notes
+    : [createNote("Quick note", legacyNote)];
+  const notes = sourceNotes
+    .map((note, index) => ({
+      id: note.id || uid(),
+      title: note.title?.trim() || `Jegyzet ${index + 1}`,
+      content: note.content ?? (index === 0 ? legacyNote : ""),
+      createdAt: note.createdAt || new Date().toISOString(),
+      updatedAt: note.updatedAt || note.createdAt || new Date().toISOString(),
+      order: note.order ?? index,
+    }))
+    .sort((a, b) => a.order - b.order || a.updatedAt.localeCompare(b.updatedAt))
+    .map((note, order) => ({ ...note, order }));
+  const activeNoteId = notes.some((note) => note.id === data.activeNoteId) ? data.activeNoteId! : notes[0].id;
+  const activeNote = notes.find((note) => note.id === activeNoteId) ?? notes[0];
+
+  return { notes, activeNoteId, note: activeNote.content };
+};
+const createDefaultData = (): DashboardData => {
+  const initialNote = createNote("Quick note", "Ne feledd: a fókusz kulcsa a kevesebb, de jobb döntés.");
+  return {
+    shortcuts: defaultShortcuts,
+    shortcutCategories: createShortcutCategories(defaultShortcuts),
+    todos: defaultTodos,
+    notes: [initialNote],
+    activeNoteId: initialNote.id,
+    note: initialNote.content,
+    settings: defaultSettings,
+    layout: defaultLayout,
+  };
+};
 
 const createProfile = (name: string, data = createDefaultData()): Profile => {
   const now = new Date().toISOString();
@@ -126,15 +167,17 @@ const shortcutIconSlugs: Record<string, string> = {
   youtube: "youtube",
 };
 
-const normalizeData = (data: DashboardData): DashboardData => {
-  const shortcuts = data.shortcuts.map((shortcut) => ({
+const normalizeData = (data: Partial<DashboardData>): DashboardData => {
+  const shortcuts = (data.shortcuts ?? defaultShortcuts).map((shortcut) => ({
     ...shortcut,
     category: normalizeCategoryName(shortcut.category),
     iconSlug: shortcut.iconSlug || shortcutIconSlugs[shortcut.name.trim().toLowerCase()],
   }));
+  const notesData = normalizeNotes(data);
 
   return {
     ...data,
+    todos: data.todos ?? defaultTodos,
     settings: {
       ...defaultSettings,
       ...data.settings,
@@ -157,6 +200,7 @@ const normalizeData = (data: DashboardData): DashboardData => {
       freeItems: data.layout?.freeItems ?? defaultLayout.freeItems,
     },
     shortcuts,
+    ...notesData,
     shortcutCategories: createShortcutCategories(shortcuts, data.shortcutCategories ?? []),
   };
 };
@@ -165,8 +209,10 @@ type State = {
   profiles: Profile[];
   activeProfileId: string;
   shortcuts: Shortcut[];
-  shortcutCategories: ShortcutCategory[];
+    shortcutCategories: ShortcutCategory[];
   todos: Todo[];
+  notes: Note[];
+  activeNoteId: string;
   note: string;
   settings: Settings;
   layout: DashboardLayout;
@@ -187,6 +233,10 @@ type State = {
   toggleTodo: (id: string) => void;
   deleteTodo: (id: string) => void;
   reorderTodos: (ids: string[]) => void;
+  addNote: (title?: string) => void;
+  switchNote: (id: string) => void;
+  updateNote: (id: string, note: Partial<Pick<Note, "title" | "content">>) => void;
+  deleteNote: (id: string) => void;
   setNote: (note: string) => void;
   updateSettings: (settings: Partial<Settings>) => void;
   setLayoutMode: (mode: DashboardLayout["mode"]) => void;
@@ -198,8 +248,10 @@ type State = {
 
 const activeData = (state: State): DashboardData => ({
   shortcuts: state.shortcuts,
-  shortcutCategories: state.shortcutCategories,
+    shortcutCategories: state.shortcutCategories,
   todos: state.todos,
+  notes: state.notes,
+  activeNoteId: state.activeNoteId,
   note: state.note,
   settings: state.settings,
   layout: state.layout ?? defaultLayout,
@@ -422,9 +474,54 @@ export const useDashboardStore = create<State>()(
           };
           return { ...data, ...stampActiveProfile(state, data) };
         }),
+      addNote: (title) =>
+        set((state) => {
+          const created = { ...createNote(title || "Új jegyzet"), order: state.notes.length };
+          const data = {
+            ...activeData(state),
+            notes: [...state.notes, created],
+            activeNoteId: created.id,
+            note: created.content,
+          };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
+      switchNote: (id) =>
+        set((state) => {
+          const activeNote = state.notes.find((item) => item.id === id);
+          if (!activeNote) return {};
+          const data = { ...activeData(state), activeNoteId: activeNote.id, note: activeNote.content };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
+      updateNote: (id, note) =>
+        set((state) => {
+          const now = new Date().toISOString();
+          const notes = state.notes.map((item) =>
+            item.id === id
+              ? {
+                  ...item,
+                  ...(note.title !== undefined ? { title: note.title.trim() || item.title } : {}),
+                  ...(note.content !== undefined ? { content: note.content } : {}),
+                  updatedAt: now,
+                }
+              : item,
+          );
+          const activeNote = notes.find((item) => item.id === state.activeNoteId) ?? notes[0];
+          const data = { ...activeData(state), notes, activeNoteId: activeNote.id, note: activeNote.content };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
+      deleteNote: (id) =>
+        set((state) => {
+          if (state.notes.length <= 1) return {};
+          const remaining = state.notes.filter((item) => item.id !== id).map((item, order) => ({ ...item, order }));
+          const activeNote = id === state.activeNoteId ? remaining[0] : remaining.find((item) => item.id === state.activeNoteId) ?? remaining[0];
+          const data = { ...activeData(state), notes: remaining, activeNoteId: activeNote.id, note: activeNote.content };
+          return { ...data, ...stampActiveProfile(state, data) };
+        }),
       setNote: (note) =>
         set((state) => {
-          const data = { ...activeData(state), note };
+          const now = new Date().toISOString();
+          const notes = state.notes.map((item) => item.id === state.activeNoteId ? { ...item, content: note, updatedAt: now } : item);
+          const data = { ...activeData(state), notes, note };
           return { ...data, ...stampActiveProfile(state, data) };
         }),
       updateSettings: (settings) =>
@@ -498,7 +595,10 @@ export const useDashboardStore = create<State>()(
       },
       merge: (persisted, current) => {
         const state = persisted as Partial<State>;
-        if (!state.profiles?.length || !state.activeProfileId) return { ...current, ...state };
+        if (!state.profiles?.length || !state.activeProfileId) {
+          const data = normalizeData(state);
+          return { ...current, ...state, ...data };
+        }
         const snapshot = normalizeSnapshot({ profiles: state.profiles, activeProfileId: state.activeProfileId });
         const activeProfile = snapshot.profiles.find((profile) => profile.id === snapshot.activeProfileId) ?? snapshot.profiles[0];
         return {

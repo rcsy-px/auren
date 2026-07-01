@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { CalendarDays, Grid3X3, StickyNote } from "lucide-react";
 import { CalendarAgendaView } from "./components/CalendarAgendaView";
 import { ClockWeather } from "./components/ClockWeather";
+import { DashboardOverview } from "./components/DashboardOverview";
 import { DashboardWidgets } from "./components/DashboardWidgets";
 import { FreeDashboard } from "./components/FreeDashboard";
 import { NotesWorkspaceView } from "./components/NotesWorkspaceView";
@@ -133,6 +134,7 @@ function ShortcutsView() {
     <section className="focus-shell">
       <FocusHeader icon={<Grid3X3 size={22} />} title={t("shortcuts.title")} subtitle={t("shortcuts.subtitle")} />
       <SearchBar />
+      <DashboardOverview />
       <ShortcutLibraryView />
     </section>
   );
