@@ -6,11 +6,14 @@
 
 - Added multi-note support with note creation, switching, renaming, deletion, search, and Markdown preview empty states.
 - Added a Shortcut Library overview panel with shortcut/category/open-mode stats.
+- Added Chromium extension version status for the extension and connected dashboard.
 
 ### Changed
 
 - Improved the Shortcut Library with result counts, category count badges, reset filters, richer empty states, and clearer grid/list actions.
 - Updated the dashboard notes widget to edit the active note.
+- Updated version checks to read the installed version from `package.json` when `AUREN_VERSION` is not set.
+
 ## 0.1.3 - 2026-06-28
 
 ### Changed
@@ -43,3 +46,5 @@ Initial public release of Auren Dashboard.
 - WeatherAPI.com proxy with a global API key and per-profile weather location.
 - iCal and CalDAV calendar support with global or per-profile source scope.
 - Docker image workflow, Compose files, health endpoint, and version/update checks.
+
+

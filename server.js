@@ -11,11 +11,13 @@ const dataDir = process.env.AUREN_DATA_DIR
   ? path.resolve(process.env.AUREN_DATA_DIR)
   : path.join(__dirname, "data");
 const dashboardFile = path.join(dataDir, "dashboard.json");
+const packageJsonFile = path.join(__dirname, "package.json");
 const weatherKeyFile = path.join(dataDir, "weather-key.json");
 const calendarSourceFile = path.join(dataDir, "calendar-source.json");
 const weatherCache = new Map();
 const calendarCache = new Map();
 let versionCache = null;
+let packageVersionCache = null;
 const WEATHER_CACHE_TTL = 10 * 60 * 1000;
 const CALENDAR_CACHE_TTL = 10 * 60 * 1000;
 const VERSION_CACHE_TTL = 60 * 60 * 1000;
@@ -41,7 +43,7 @@ const server = createServer(async (request, response) => {
     }
 
     if (url.pathname === "/api/health") {
-      sendJson(response, 200, { ok: true, version: process.env.AUREN_VERSION ?? "dev" });
+      sendJson(response, 200, { ok: true, version: await getInstalledVersion() });
       return;
     }
 
@@ -195,9 +197,23 @@ async function handleWeatherKeyApi(request, response) {
 async function handleVersionApi(response) {
   sendJson(response, 200, await getVersionInfo());
 }
+async function getInstalledVersion() {
+  const envVersion = process.env.AUREN_VERSION?.trim();
+  if (envVersion) return normalizeVersion(envVersion);
 
+  if (packageVersionCache) return packageVersionCache;
+
+  try {
+    const packageJson = JSON.parse(await readFile(packageJsonFile, "utf8"));
+    packageVersionCache = normalizeVersion(packageJson.version ?? "dev");
+  } catch {
+    packageVersionCache = "dev";
+  }
+
+  return packageVersionCache;
+}
 async function getVersionInfo() {
-  const version = normalizeVersion(process.env.AUREN_VERSION ?? "dev");
+  const version = await getInstalledVersion();
   const baseInfo = {
     version,
     updateAvailable: false,
@@ -950,3 +966,4 @@ function readRequestBody(request) {
     request.on("error", reject);
   });
 }
+

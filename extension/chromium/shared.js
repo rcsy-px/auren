@@ -25,3 +25,27 @@ function saveDashboardUrl(value) {
   const normalized = normalizeDashboardUrl(value);
   return chrome.storage.sync.set({ [DASHBOARD_URL_KEY]: normalized }).then(() => normalized);
 }
+
+function getExtensionVersion() {
+  return chrome.runtime.getManifest().version;
+}
+
+function createDashboardApiUrl(dashboardUrl, path) {
+  return new URL(path, dashboardUrl).toString();
+}
+
+async function fetchDashboardVersion(dashboardUrl) {
+  if (!dashboardUrl) {
+    return null;
+  }
+
+  const response = await fetch(createDashboardApiUrl(dashboardUrl, "/api/version"), {
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    throw new Error("Dashboard version is unavailable.");
+  }
+
+  return response.json();
+}

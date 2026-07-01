@@ -24,6 +24,7 @@ If the protocol is omitted, the extension saves it as `http://...`.
 
 - Settings are stored in `chrome.storage.sync`.
 - No dashboard token or secret is stored here, only the dashboard URL.
+- The settings popup and setup panel show the extension version and the connected dashboard version from /api/version.
 - The new tab page stays on the extension URL and embeds Auren in an iframe.
 - The manifest allows `frame-src http: https:` and host permissions for HTTP/HTTPS dashboards.
 - This is a first scaffold for Chrome Web Store compatible Chromium browsers.
@@ -47,3 +48,4 @@ The extension cannot rewrite Vivaldi's own browser settings directly. Instead, i
 - Vivaldi support relies on a fallback tab guard, not a real browser settings override.
 - The extension currently requests broad HTTP/HTTPS host permissions so user-provided dashboard URLs can be framed.
 - The floating Settings button is the only in-page control for changing the saved dashboard URL from the wrapper.
+
